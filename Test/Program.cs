@@ -37,17 +37,9 @@ namespace MParse
             map.Initialise();
             while (true)
             {
-                ParseState parsed = EmptyParseState(Console.ReadLine()).Parse(Start);
-                parsed = parsed.Bind(state => state.Item2 == "" ? parsed
-                                                                : ParseState.Throw($"Error: Expected \"\", got {state.Item2[0]} near {state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}"));
-                parsed.Match
+                MParse.DoParse(Start, Console.ReadLine(), map).Match
                 (
-                    Result: state =>
-                    {
-                        state.Item3.ForEach(s => Console.WriteLine(s));
-                        ProcessAST(state.Item3, map).PrintPretty("", true);
-                        return Unit.Nil;
-                    },
+                    Result: ast => { ast.PrintPretty("", true); return Unit.Nil; },
                     Throw: e => { Console.WriteLine(e); return Unit.Nil; }
                 );
             }
@@ -75,9 +67,9 @@ namespace MParse
                 indent += "│ ";
             }
             Console.WriteLine(t.Term.ToString());
-
             for (int i = 0; i < t.Children.Count; i++)
                 t.Children[i].PrintPretty(indent, i == t.Children.Count - 1);
+
         }
 
         static ParseState Start(ParseState text) => text.Parse(Statement).Parse(';').Parse(Option(NewOption(Start, "statement"), NewOption(epsilon, "epsilon"))).Rule(0);

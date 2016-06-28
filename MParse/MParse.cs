@@ -14,6 +14,14 @@ namespace MParse
 {
     public static class MParse
     {
+        public static Error<AST, string> DoParse(this NonTerminal Start, string input, ASTMap map)
+        {
+            ParseState parsed = ParseState.Return(Tuple.Create("", input, ImmutableList<Either<string, int>>.Empty)).Parse(Start);
+            parsed = parsed.Bind(state => state.Item2 == ""
+                                          ? parsed
+                                          : ParseState.Throw($"Error: Expected EOF, got {state.Item2[0]} near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\""));
+            return parsed.Map(value => ProcessAST(value.Item3, map));
+        }
         public static ParseState Parse(this ParseState prev, char c)
         {
             if (prev.State == ErrorState.Result)
@@ -162,7 +170,7 @@ namespace MParse
                         else return ParseState.Result(Tuple.Create(
                                                 state.Item1 + state.Item2.Substring(0, match.Length),
                                                 string.Concat(state.Item2.Skip(match.Length)),
-                                                log ? state.Item3.Add(Either<string, int>.Left(state.Item2[0].ToString())) : state.Item3));
+                                                log ? state.Item3.Add(Either<string, int>.Left(state.Item2.Substring(0, match.Length))) : state.Item3));
                     });
                 }
                 catch (IndexOutOfRangeException)
@@ -181,8 +189,6 @@ namespace MParse
         public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
 
         public static ParseState epsilon(ParseState text) => text.Rule(-1);
-
-        public static ParseState EmptyParseState(string text) => ParseState.Return(Tuple.Create("", text, ImmutableList<Either<string, int>>.Empty));
 
         public static Tuple<string, int> Specifier(string s, int i) => Tuple.Create(s, i);
 
