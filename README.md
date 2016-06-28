@@ -16,21 +16,20 @@ MParse is a monadic parser for c#.
 3. To transform your BNF grammar into C# code, follow the steps in the tutorial. (The tutorial is unwritten at the moment, but an example is povided below.)
 4. Add a 'map' to tell the parser how to interpret the rules. (Again, see the tutorial, but there is an example below.)
 5. Invoke the `DoParse` method, which returns either an abstract syntax tree (AST) or an error. Use the code below:
-   ```csharp
-   Error<AST, string> result = DoParse(MainGrammarRule, input, map);
-   result.Match
-   (
-     Result: ast =>
-     {
-       // Do something with the AST
-     },
-     Error: e =>
-     {
-       // Do something with the error, which is a human-friendly string stored in 'e'
-     }
-   );
-   ```
-
+```csharp
+Error<AST, string> result = DoParse(MainGrammarRule, input, map);
+result.Match
+(
+  Result: ast =>
+  {
+    // Do something with the AST
+  },
+  Error: e =>
+  {
+    // Do something with the error, which is a human-friendly string stored in 'e'
+  }
+);
+```
 ## Example
 *BNF Grammar:*
 ```
