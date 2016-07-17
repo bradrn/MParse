@@ -332,7 +332,7 @@ namespace MParse
     #endregion
 
     #region TermSpecification
-    // TermSpecification = Terminal string | NonTerminal int | Option int int | Base | Ignore
+    // TermSpecification = Terminal string | NonTerminal int | Option int int
     public class TermSpecification
     {
         private class TerminalImpl
@@ -353,35 +353,21 @@ namespace MParse
         }
         private class OptionImpl
         {
-            public ImmutableList<int> Values { get; set; } = ImmutableList<int>.Empty;
-            public OptionImpl(ImmutableList<int> vs)
+            public int Value1 { get; set; } = default(int);
+            public int Value2 { get; set; } = default(int);
+            public OptionImpl(int value1, int value2)
             {
-                Values = vs;
-            }
-        }
-        private class BaseImpl
-        {
-            public BaseImpl()
-            {
-            }
-        }
-        private class IgnoreImpl
-        {
-            public IgnoreImpl()
-            {
+                Value1 = value1;
+                Value2 = value2;
             }
         }
         public TermSpecificationState State { get; set; }
         private TerminalImpl TerminalField;
-        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; OptionField = null; BaseField = null; IgnoreField = null; State = TermSpecificationState.Terminal; } }
+        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; OptionField = null; State = TermSpecificationState.Terminal; } }
         private NonTerminalImpl NonTerminalField;
-        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; OptionField = null; BaseField = null; IgnoreField = null; State = TermSpecificationState.NonTerminal; } }
+        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; OptionField = null; State = TermSpecificationState.NonTerminal; } }
         private OptionImpl OptionField;
-        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalField = null; NonTerminalField = null; BaseField = null; IgnoreField = null; State = TermSpecificationState.Option; } }
-        private BaseImpl BaseField;
-        private BaseImpl BaseValue { get { return BaseField; } set { BaseField = value; TerminalField = null; NonTerminalField = null; OptionField = null; IgnoreField = null; State = TermSpecificationState.Base; } }
-        private IgnoreImpl IgnoreField;
-        private IgnoreImpl IgnoreValue { get { return IgnoreField; } set { IgnoreField = value; TerminalField = null; NonTerminalField = null; OptionField = null; BaseField = null; State = TermSpecificationState.Ignore; } }
+        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalField = null; NonTerminalField = null; State = TermSpecificationState.Option; } }
         private TermSpecification() { }
         public static TermSpecification Terminal(string value1)
         {
@@ -395,45 +381,26 @@ namespace MParse
             result.NonTerminalValue = new NonTerminalImpl(value1);
             return result;
         }
-        public static TermSpecification Option(params int[] values)
+        public static TermSpecification Option(int value1, int value2)
         {
             TermSpecification result = new TermSpecification();
-            result.OptionValue = new OptionImpl(values.ToImmutableList());
+            result.OptionValue = new OptionImpl(value1, value2);
             return result;
         }
-        public static TermSpecification Base()
-        {
-            TermSpecification result = new TermSpecification();
-            result.BaseValue = new BaseImpl();
-            return result;
-        }
-        public static TermSpecification Ignore()
-        {
-            TermSpecification result = new TermSpecification();
-            result.IgnoreValue = new IgnoreImpl();
-            return result;
-        }
-        public T1 Match<T1>(Func<string, T1> Terminal, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option, Func<T1> Base, Func<T1> Ignore)
+        public T1 Match<T1>(Func<string, T1> Terminal, Func<int, T1> NonTerminal, Func<int, int, T1> Option)
         {
             switch (State)
             {
                 case TermSpecificationState.Terminal: return Terminal(TerminalValue.Value1);
                 case TermSpecificationState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
-                case TermSpecificationState.Option: return Option(OptionValue.Values);
-                case TermSpecificationState.Base: return Base();
-                case TermSpecificationState.Ignore: return Ignore();
+                case TermSpecificationState.Option: return Option(OptionValue.Value1, OptionValue.Value2);
             }
             return default(T1);
         }
-        public override string ToString() => this.Match(Terminal: t => "Terminal " + t,
-                                                        NonTerminal: nt => "Nonterminal " + nt,
-                                                        Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())),
-                                                        Base: () => "Base",
-                                                        Ignore: () => "Ignore");
     }
     public enum TermSpecificationState
     {
-        Terminal, NonTerminal, Option, Base, Ignore
+        Terminal, NonTerminal, Option
     }
     #endregion
 
@@ -511,17 +478,9 @@ namespace MParse
                                                                                                         Option: _ => AST.FromTree(t.Children[0], map).Term,
                                                                                                         Base: () => { throw new Exception(); },
                                                                                                         Ignore: () => { throw new Exception(); }); else throw new Exception(); },
-                            Base: () => { if (t.Children.Count == 1) return t.Children[0].Value.Match(Terminal: s => Term.Terminal(s),
-                                                                                                      NonTerminal: _ => { throw new Exception(); },
-                                                                                                      Option: _ => { throw new Exception(); },
-                                                                                                      Base: () => { throw new Exception(); },
-                                                                                                      Ignore: () => { throw new Exception(); });
-                                          else throw new Exception(); },
-                            Ignore: () => null // we will remove this node later in the function
                         );
             _ast.Children = _ast.Term.Match(Terminal: _ => new List<AST>(),
                 NonTerminal: nt => nt == nameof(MParse.epsilon) ? new List<AST>() : t.Children.Select(child => FromTree(child, map)).ToList());
-            _ast.RemoveAll(ast => ast == null);
             return _ast;
         }
 
