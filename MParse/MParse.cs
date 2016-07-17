@@ -332,7 +332,7 @@ namespace MParse
     #endregion
 
     #region TermSpecification
-    // TermSpecification = Terminal string | NonTerminal int | Option int int
+    // TermSpecification = Terminal string | NonTerminal int | Option int[]
     public class TermSpecification
     {
         private class TerminalImpl
@@ -353,12 +353,10 @@ namespace MParse
         }
         private class OptionImpl
         {
-            public int Value1 { get; set; } = default(int);
-            public int Value2 { get; set; } = default(int);
-            public OptionImpl(int value1, int value2)
+            public int[] Value1 { get; set; } = default(int[]);
+            public OptionImpl(int[] value1)
             {
                 Value1 = value1;
-                Value2 = value2;
             }
         }
         public TermSpecificationState State { get; set; }
@@ -381,19 +379,19 @@ namespace MParse
             result.NonTerminalValue = new NonTerminalImpl(value1);
             return result;
         }
-        public static TermSpecification Option(int value1, int value2)
+        public static TermSpecification Option(params int[] value1)
         {
             TermSpecification result = new TermSpecification();
-            result.OptionValue = new OptionImpl(value1, value2);
+            result.OptionValue = new OptionImpl(value1);
             return result;
         }
-        public T1 Match<T1>(Func<string, T1> Terminal, Func<int, T1> NonTerminal, Func<int, int, T1> Option)
+        public T1 Match<T1>(Func<string, T1> Terminal, Func<int, T1> NonTerminal, Func<int[], T1> Option)
         {
             switch (State)
             {
                 case TermSpecificationState.Terminal: return Terminal(TerminalValue.Value1);
                 case TermSpecificationState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
-                case TermSpecificationState.Option: return Option(OptionValue.Value1, OptionValue.Value2);
+                case TermSpecificationState.Option: return Option(OptionValue.Value1);
             }
             return default(T1);
         }
@@ -475,9 +473,8 @@ namespace MParse
                             NonTerminal: nt => Term.NonTerminal(GetNonTerminal(map, nt)),
                             Option: os => { if (t.Children.Count == 1) return t.Children[0].Value.Match(Terminal: _ => { throw new Exception(); },
                                                                                                         NonTerminal: nt => Term.NonTerminal(GetNonTerminal(map, nt)),
-                                                                                                        Option: _ => AST.FromTree(t.Children[0], map).Term,
-                                                                                                        Base: () => { throw new Exception(); },
-                                                                                                        Ignore: () => { throw new Exception(); }); else throw new Exception(); },
+                                                                                                        Option: _ => AST.FromTree(t.Children[0], map).Term);
+                                            else throw new Exception(); }
                         );
             _ast.Children = _ast.Term.Match(Terminal: _ => new List<AST>(),
                 NonTerminal: nt => nt == nameof(MParse.epsilon) ? new List<AST>() : t.Children.Select(child => FromTree(child, map)).ToList());
