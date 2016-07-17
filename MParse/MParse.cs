@@ -5,62 +5,44 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AlgebraicTypes;
-using ParseState = AlgebraicTypes.Error<System.Tuple<string, string, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<string, int>>>, string>;
-using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<string, string, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<string, int>>>, string>,
-                                AlgebraicTypes.Error<System.Tuple<string, string, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<string, int>>>, string>>;
+using TokenList = System.Collections.Immutable.ImmutableList<MParse.Token>;
+using ParseState = AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<int>>, MParse.TokenError>;
+using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<int>>, MParse.TokenError>,
+                                AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<int>>, MParse.TokenError>>;
 using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.TermSpecification>>;
 
 namespace MParse
 {
     public static class MParse
     {
-        public static Error<AST, string> DoParse(this NonTerminal Start, string input, ASTMap map)
+        public static Error<AST, TokenError> DoParse(this NonTerminal Start, TokenList input, ASTMap map)
         {
-            ParseState parsed = ParseState.Return(Tuple.Create("", input, ImmutableList<Either<string, int>>.Empty)).Parse(Start);
-            parsed = parsed.Bind(state => state.Item2 == ""
+            ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, ImmutableList<int>.Empty)).Parse(Start);
+            parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
-                                          : ParseState.Throw($"Error: Expected EOF, got {state.Item2[0]} near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\""));
+                                          : ParseState.Throw(new TokenError(TokenError.ExpectedValue.EOF(), TokenError.GotValue.Token(state.Item2[0]), state.Item2[0].Location)));
             return parsed.Map(value => ProcessAST(value.Item3, map));
         }
-        public static ParseState Parse(this ParseState prev, char c)
+
+        public static ParseState Parse(this ParseState prev, int token)
         {
             if (prev.State == ErrorState.Result)
             {
                 try
                 {
                     return (from state in prev
-                            from result in (state.Item2[0] == c)
+                            from result in (state.Item2[0].Type == token)
                                            ? ParseState.Result(Tuple.Create(
-                                                               state.Item1 + state.Item2[0],
-                                                               string.Concat(state.Item2.Skip(1)),
+                                                               state.Item1.Add(state.Item2[0]),
+                                                               state.Item2.Skip(1).ToImmutableList(),
                                                                state.Item3))
-                                           : ParseState.Throw($"Error: Expected \"{c}\", but got \"{state.Item2[0]}\" near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\"")
+                                           : ParseState.Throw(new TokenError(TokenError.ExpectedValue.Token(token), TokenError.GotValue.Token(state.Item2[0]), state.Item2[0].Location))
                             select result);
                 }
                 catch (IndexOutOfRangeException)
                 {
-                    return prev.Bind(state => ParseState.Throw($"Error: Unexpected EOF -- expected \"{c}\", but got EOF near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\""));
+                    return prev.Bind(state => ParseState.Throw(new TokenError(TokenError.ExpectedValue.Token(token), TokenError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location)));
                 }
-            }
-            else return prev;
-        }
-
-        public static ParseState Parse(this ParseState prev, string s)
-        {
-            if (prev.State == ErrorState.Result)
-            {
-                ParseState result = prev;
-                foreach (char c in s)
-                {
-                    result = result.Parse(c);
-                }
-
-                return result.Match(Result: _ => result,
-                                    Throw: e =>
-                                    {
-                                        if (e.StartsWith("Error: Unexpected EOF")) return prev.Bind(state => ParseState.Throw($"Error: Unexpected EOF -- Expected \"{s}\", but got EOF near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\""));
-                                        else return prev.Bind(state => ParseState.Throw($"Error: Expected \"{s}\", but got \"{state.Item2[0]}\" near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\""));
-                                    });
             }
             else return prev;
         }
@@ -92,99 +74,18 @@ namespace MParse
                         if (result.State == ErrorState.Result) return result;
                         else continue;
                     }
-                    string[] optionsDescriptions = options.Select(o => o.Item2).ToArray();
-                    string description = "";
-                    for (int i = 0; i < optionsDescriptions.Count(); i++)
-                    {
-                        if (i != optionsDescriptions.Count() - 1) description += optionsDescriptions[i] + ", ";
-                        else description += "or " + optionsDescriptions[i];
-                    }
-                    return prev.Bind(state => ParseState.Throw($"Error: Expected {description} near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\""));
+                    return prev.Bind(state => ParseState.Throw(new TokenError(TokenError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), TokenError.GotValue.None(), state.Item1[state.Item1.Count - 1].Location)));
                 }
                 else return prev;
             };
         }
 
-        public static Tuple<Func<ParseState, ParseState>, string> NewOption(Func<ParseState, ParseState> ps, string description) => Tuple.Create(ps, description);
-
-        public static ParseState ParseWhile(this ParseState prev, Func<char, bool> f, string description, bool log = true) =>
-            prev.Bind(
-                state =>
-                {
-                    Tuple<string, string, ImmutableList<Either<string, int>>> parsed = state;
-                    if (!f(parsed.Item2[0])) return ParseState.Throw($"Error: expected {description}, got {parsed.Item2[0]} near {state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}");
-                    string stringParsed = "";
-                    foreach (char c in parsed.Item2)
-                    {
-                        if (f(c))
-                        {
-                            try
-                            {
-                                parsed = Tuple.Create(parsed.Item1 + parsed.Item2[0], string.Concat(parsed.Item2.Skip(1)), parsed.Item3);
-                            }
-                            catch (IndexOutOfRangeException)
-                            {
-                                return prev.Bind(state2 => ParseState.Throw($"Error: Unexpected EOF -- expected {description}, but got EOF near \"{state2.Item1.Substring(Math.Max(state2.Item1.Length - 10, 0))}\""));
-                            }
-                            stringParsed += c;
-                        }
-                        else break;
-                    }
-                    if (log) parsed = Tuple.Create(parsed.Item1, parsed.Item2, parsed.Item3.Add(Either<string, int>.Left(stringParsed)));
-                    return ParseState.Result(parsed);
-                });
-
-        public static ParseState ParseOn(this ParseState prev, Func<char, bool> f, string description, bool log = true)
-        {
-            if (prev.State == ErrorState.Result)
-            {
-                try
-                {
-                    return (from state in prev
-                            from result in f(state.Item2[0])
-                                           ? ParseState.Return(Tuple.Create(
-                                                state.Item1 + state.Item2[0],
-                                                string.Concat(state.Item2.Skip(1)),
-                                                log ? state.Item3.Add(Either<string, int>.Left(state.Item2[0].ToString())) : state.Item3))
-                                           : ParseState.Throw($"Error: Expected {description}, but got {state.Item2} near {state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}")
-                            select result);
-                }
-                catch (IndexOutOfRangeException)
-                {
-                    return prev.Bind(state => ParseState.Throw($"Error: Unexpected EOF -- expected {description}, but got EOF near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\""));
-                }
-            }
-            else return prev;
-        }
-
-        public static ParseState ParseRegex(this ParseState prev, string regex, string description, bool log = true)
-        {
-            if (prev.State == ErrorState.Result)
-            {
-                try
-                {
-                    return prev.Bind(state =>
-                    {
-                        System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(state.Item2, "\\A(?:" + regex + ")");
-                        if (match.Value == "") return ParseState.Throw($"Error: Expected {description} near {state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}");
-                        else return ParseState.Result(Tuple.Create(
-                                                state.Item1 + state.Item2.Substring(0, match.Length),
-                                                string.Concat(state.Item2.Skip(match.Length)),
-                                                log ? state.Item3.Add(Either<string, int>.Left(state.Item2.Substring(0, match.Length))) : state.Item3));
-                    });
-                }
-                catch (IndexOutOfRangeException)
-                {
-                    return prev.Bind(state => ParseState.Throw($"Error: Unexpected EOF -- expected {description}, but got EOF near \"{state.Item1.Substring(Math.Max(state.Item1.Length - 10, 0))}\""));
-                }
-            }
-            else return prev;
-        }
+        public static Tuple<Func<ParseState, ParseState>, string> Option(Func<ParseState, ParseState> ps, string description) => Tuple.Create(ps, description);
 
         public static ParseState Rule(this ParseState prev, int rulenum) => prev.Bind(state => ParseState.Return(
                                                                                              Tuple.Create(state.Item1,
                                                                                                           state.Item2,
-                                                                                                          state.Item3.Add(Either<string, int>.Right(rulenum)))));
+                                                                                                          state.Item3.Add(rulenum))));
 
         public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
 
@@ -192,61 +93,40 @@ namespace MParse
 
         public static Tuple<string, int> Specifier(string s, int i) => Tuple.Create(s, i);
 
-        public static AST ProcessAST(ImmutableList<AlgebraicTypes.Either<string, int>> log, ASTMap map)
+        public static Token Token(int type, string value, ILocation location) => new Token(type, value, location);
+
+        public static AST ProcessAST(ImmutableList<int> log, ASTMap map)
         {
             Tree<TermSpecification> _ast = new Tree<TermSpecification>();
             List<int> position = new List<int>();
             bool first = true;
-            foreach (Either<string, int> item in log.Reverse())
+            foreach (int nt in log.Reverse())
             {
-                item.Match
-                (
-                    Right: nt =>
-                    {
-                        if (first)
-                        {
-                            _ast.Value = TermSpecification.NonTerminal(nt);
-                            _ast.Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
-                                            .Select(t => new Tree<TermSpecification>(t))
-                                            .ToList();
-                            first = false;
-                        }
-                        else
-                        {
-                            _ast.Rightmost(ts => (ts.State == TermSpecificationState.NonTerminal) || (ts.State == TermSpecificationState.Option))
-                                .Match
-                                (
-                                    Just: rightmost =>
-                                    {
-                                        if (_ast.Navigate(rightmost).Value.State == TermSpecificationState.Option)
-                                            _ast.Navigate(rightmost).Value = TermSpecification.NonTerminal(nt);
-                                        _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
-                                                                            .Select(t => new Tree<TermSpecification>(t))
-                                                                            .ToList();
-                                        return Unit.Nil;
-                                    },
-                                    Nothing: () => Unit.Nil
-                                );
-                        }
-                        return Unit.Nil;
-                    },
-                    Left: v =>
-                    {
-                        _ast.Rightmost(ts => (ts.State == TermSpecificationState.Base) ||
-                                             (ts.State == TermSpecificationState.Ignore))
-                            .Match
-                            (
-                                Just: rightmost =>
-                                {
-                                    _ast.Navigate(rightmost).Children = new List<Tree<TermSpecification>>() { new Tree<TermSpecification>(TermSpecification.Terminal(v)) };
-                                    return Unit.Nil;
-                                },
-                                Nothing: () => Unit.Nil
-                            );
-                        return Unit.Nil;
-                    }
-
-                );
+                if (first)
+                {
+                    _ast.Value = TermSpecification.NonTerminal(nt);
+                    _ast.Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                                    .Select(t => new Tree<TermSpecification>(t))
+                                    .ToList();
+                    first = false;
+                }
+                else
+                {
+                    _ast.Rightmost(ts => (ts.State == TermSpecificationState.NonTerminal) || (ts.State == TermSpecificationState.Option))
+                        .Match
+                        (
+                            Just: rightmost =>
+                            {
+                                if (_ast.Navigate(rightmost).Value.State == TermSpecificationState.Option)
+                                    _ast.Navigate(rightmost).Value = TermSpecification.NonTerminal(nt);
+                                _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                                                                    .Select(t => new Tree<TermSpecification>(t))
+                                                                    .ToList();
+                                return Unit.Nil;
+                            },
+                            Nothing: () => Unit.Nil
+                        );
+                }
             }
             return AST.FromTree(_ast, map);
         }
@@ -257,6 +137,144 @@ namespace MParse
         }
     }
     
+    public struct Token
+    {
+        public int Type { get; }
+        public string Value { get; }
+        public ILocation Location { get; }
+        public Token(int type, string value, ILocation location)
+        {
+            Type = type;
+            Value = value;
+            Location = location;
+        }
+    }
+
+    public class TokenError
+    {
+        public class ExpectedValue
+        {
+            // ExpectedValue = EOF | Token int | Option string[]
+            private enum ExpectedValueState
+            {
+                EOF, Token, Option
+            }
+            private ExpectedValueState State { get; set; }
+            private Unit EOFField;
+            private Unit EOFValue { get { return EOFField; } set { EOFField = value; TokenField = 0; OptionField = null; State = ExpectedValueState.EOF; } }
+            private int TokenField;
+            private int TokenValue { get { return TokenField; } set { TokenField = value; EOFField = null; OptionField = null; State = ExpectedValueState.Token; } }
+            private string[] OptionField;
+            private string[] OptionValue { get { return OptionField; } set { OptionField = value; EOFField = null; TokenField = 0; State = ExpectedValueState.Option; } }
+            private ExpectedValue() { }
+            public static ExpectedValue EOF()
+            {
+                ExpectedValue result = new ExpectedValue();
+                result.EOFValue = Unit.Nil;
+                return result;
+            }
+            public static ExpectedValue Token(int value1)
+            {
+                ExpectedValue result = new ExpectedValue();
+                result.TokenValue = value1;
+                return result;
+            }
+            public static ExpectedValue Option(string[] value1)
+            {
+                ExpectedValue result = new ExpectedValue();
+                result.OptionValue = value1;
+                return result;
+            }
+            public T1 Match<T1>(Func<T1> EOF, Func<int, T1> Token, Func<string[], T1> Option)
+            {
+                switch (State)
+                {
+                    case ExpectedValueState.EOF: return EOF();
+                    case ExpectedValueState.Token: return Token(TokenValue);
+                    case ExpectedValueState.Option: return Option(OptionValue);
+                }
+                return default(T1);
+            }
+        }
+        public class GotValue
+        {
+            // GotValue = EOF | Token Token | None
+            private enum GotValueState
+            {
+                EOF, Token, None
+            }
+            private GotValueState State { get; set; }
+            private Unit EOFField;
+            private Unit EOFValue { get { return EOFField; } set { EOFField = value; TokenField = new Token(); NoneField = null; State = GotValueState.EOF; } }
+            private Token TokenField;
+            private Token TokenValue { get { return TokenField; } set { TokenField = value; EOFField = Unit.Nil; NoneField = null; State = GotValueState.Token; } }
+            private Unit NoneField;
+            private Unit NoneValue { get { return NoneField; } set { NoneField = value; TokenField = new Token(); EOFField = null; State = GotValueState.EOF; } }
+            private GotValue() { }
+            public static GotValue EOF()
+            {
+                GotValue result = new GotValue();
+                result.EOFValue = Unit.Nil;
+                return result;
+            }
+            public static GotValue Token(Token value1)
+            {
+                GotValue result = new GotValue();
+                result.TokenValue = value1;
+                return result;
+            }
+            public static GotValue None()
+            {
+                GotValue result = new GotValue();
+                result.NoneValue = Unit.Nil;
+                return result;
+            }
+            public T1 Match<T1>(Func<T1> EOF, Func<Token, T1> Token, Func<T1> None)
+            {
+                switch (State)
+                {
+                    case GotValueState.EOF: return EOF();
+                    case GotValueState.Token: return Token(TokenValue);
+                    case GotValueState.None: return None();
+                }
+                return default(T1);
+            }
+        }
+        public ExpectedValue Expected { get; }
+        public GotValue Got { get; }
+        public ILocation Location { get; }
+        public TokenError(ExpectedValue expected, GotValue got, ILocation location)
+        {
+            Expected = expected;
+            Got = got;
+            Location = location;
+        }
+        public string ToString(Dictionary<int, string> tokenMap)
+        {
+            string value = "Error: Expected ";
+            value += Expected.Match(EOF: () => "EOF",
+                                    Token: t => tokenMap[t],
+                                    Option: options =>
+                                    {
+                                        string description = "";
+                                        for (int i = 0; i < options.Count(); i++)
+                                        {
+                                            if (i != options.Count() - 1) description += options[i] + ", ";
+                                            else description += "or " + options[i];
+                                        }
+                                        return description;
+                                    });
+            value += Got.Match(EOF: () => ", but got EOF",
+                               Token: t => ", but got " + tokenMap[t.Type],
+                               None: () => ""
+                              );
+            value += " at " + Location.ToString();
+            return value;
+        }
+    }
+
+    public interface ILocation { }
+
     #region Term
     // Term = Terminal string | NonTerminal string
     public class Term
