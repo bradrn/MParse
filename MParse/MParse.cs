@@ -5,19 +5,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AlgebraicTypes;
+
 using TokenList = System.Collections.Immutable.ImmutableList<MParse.Token>;
-using ParseState = AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<int>>, MParse.TokenError>;
-using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<int>>, MParse.TokenError>,
-                                AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<int>>, MParse.TokenError>>;
+using ParseState = AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>;
+using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>,
+                                AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>>;
 using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.TermSpecification>>;
+using AST = MParse.Tree<AlgebraicTypes.Either<MParse.Token, int>>;
 
 namespace MParse
 {
     public static class MParse
     {
-        public static Error<AST, TokenError> DoParse(this NonTerminal Start, TokenList input, ASTMap map)
+        public static Error<AST, TokenError> DoParse(NonTerminal Start, TokenList input, ASTMap map)
         {
-            ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, ImmutableList<int>.Empty)).Parse(Start);
+            ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, ImmutableList<Either<Token, int>>.Empty)).Parse(Start);
             parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
                                           : ParseState.Throw(new TokenError(TokenError.ExpectedValue.EOF(), TokenError.GotValue.Token(state.Item2[0]), state.Item2[0].Location)));
@@ -35,11 +37,11 @@ namespace MParse
                                            ? ParseState.Result(Tuple.Create(
                                                                state.Item1.Add(state.Item2[0]),
                                                                state.Item2.Skip(1).ToImmutableList(),
-                                                               state.Item3))
+                                                               state.Item3.Add(Either<Token, int>.Left(state.Item2[0]))))
                                            : ParseState.Throw(new TokenError(TokenError.ExpectedValue.Token(token), TokenError.GotValue.Token(state.Item2[0]), state.Item2[0].Location))
                             select result);
                 }
-                catch (IndexOutOfRangeException)
+                catch (ArgumentOutOfRangeException)
                 {
                     return prev.Bind(state => ParseState.Throw(new TokenError(TokenError.ExpectedValue.Token(token), TokenError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location)));
                 }
@@ -85,7 +87,7 @@ namespace MParse
         public static ParseState Rule(this ParseState prev, int rulenum) => prev.Bind(state => ParseState.Return(
                                                                                              Tuple.Create(state.Item1,
                                                                                                           state.Item2,
-                                                                                                          state.Item3.Add(rulenum))));
+                                                                                                          state.Item3.Add(Either<Token, int>.Right(rulenum)))));
 
         public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
 
@@ -95,12 +97,12 @@ namespace MParse
 
         public static Token Token(int type, string value, ILocation location) => new Token(type, value, location);
 
-        public static AST ProcessAST(ImmutableList<int> log, ASTMap map)
+        public static AST ProcessAST(ImmutableList<Either<Token, int>> log, ASTMap map)
         {
             Tree<TermSpecification> _ast = new Tree<TermSpecification>();
             List<int> position = new List<int>();
             bool first = true;
-            foreach (int nt in log.Reverse())
+            foreach (int nt in log.Reverse().Where(item => item.State == EitherState.Right).Select(item => item.Match(Left: tok => 0, Right: nt => nt)))
             {
                 if (first)
                 {
@@ -117,8 +119,7 @@ namespace MParse
                         (
                             Just: rightmost =>
                             {
-                                if (_ast.Navigate(rightmost).Value.State == TermSpecificationState.Option)
-                                    _ast.Navigate(rightmost).Value = TermSpecification.NonTerminal(nt);
+                                _ast.Navigate(rightmost).Value = TermSpecification.NonTerminal(nt);
                                 _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
                                                                     .Select(t => new Tree<TermSpecification>(t))
                                                                     .ToList();
@@ -128,12 +129,56 @@ namespace MParse
                         );
                 }
             }
-            return AST.FromTree(_ast, map);
+            /*foreach (Token tok in log.Reverse().Where(item => item.State == EitherState.Left).Select(item => item.Match(Left: tok => tok, Right: nt => new Token())))
+            {
+                _ast.Rightmost(ts => ts.State == TermSpecificationState.Terminal)
+                    .Match
+                    (
+                        Just: rightmost =>
+                        {
+                            _ast.Navigate(rightmost).Value = TermSpecification.Terminal(;
+                            _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                                                                .Select(t => new Tree<TermSpecification>(t))
+                                                                .ToList();
+                            return Unit.Nil;
+                        },
+                        Nothing: () => Unit.Nil
+                    );
+            }*/
+            return FromTree(_ast, log, map);
         }
 
-        public static void Initialise(this ASTMap map)
+        private static AST FromTree(Tree<TermSpecification> t, ImmutableList<Either<Token, int>> log, ASTMap map, int position = 0)
         {
-            map.Add(Specifier(nameof(epsilon), -1), new List<TermSpecification> { TermSpecification.Terminal("") });
+            Func<int, string> GetNonTerminal = nt => map.Keys.Where(s => s.Item2 == nt)
+                                                             .Select(s => s.Item1)
+                                                             .First();
+            ImmutableList<Token> tokenLog = log.Reverse().Where(item => item.State == EitherState.Left).Select(item => item.Match(Left: tok => tok, Right: nt => new Token())).ToImmutableList();
+            bool wasTerminal = false;
+
+            AST ast = new AST();
+            ast.Value = t.Value.Match
+                        (
+                            Terminal: i =>
+                            {
+                                if (tokenLog[position].Type != i) throw new Exception("Terminals did not match");
+                                wasTerminal = true;
+                                return Either<Token, int>.Left(tokenLog[position]);
+                            },
+                            NonTerminal: nt => Either<Token, int>.Right(nt),
+                            Option: os => {
+                                if (t.Children.Count == 1) return t.Children[0].Value.Match(Terminal: _ => { throw new Exception("Cannot have a Terminal as a child of an Option"); },
+                                                                                            NonTerminal: nt => Either<Token, int>.Right(nt),
+                                                                                            Option: _ => { throw new Exception("Cannot have an Option as a child of an Option"); });
+                                else throw new Exception("More than one child of Option");
+                            }
+                        );
+            ast.Children = ast.Value.Match
+                                     (
+                                        Left: _ => new List<AST>(),
+                                        Right: nt => nt == -1 ? new List<AST>() : t.Children.Select(child => FromTree(child, log, map, position + (wasTerminal ? 1 : 0))).ToList()
+                                     );
+            return ast;
         }
     }
     
@@ -249,9 +294,11 @@ namespace MParse
             Got = got;
             Location = location;
         }
-        public string ToString(Dictionary<int, string> tokenMap)
+        public string ToString(Dictionary<int, string> tokenMap, bool putPositionAtFront = true)
         {
-            string value = "Error: Expected ";
+            string value = "";
+            if (putPositionAtFront) value += Location.ToString();
+            value += "Error: Expected ";
             value += Expected.Match(EOF: () => "EOF",
                                     Token: t => tokenMap[t],
                                     Option: options =>
@@ -268,84 +315,26 @@ namespace MParse
                                Token: t => ", but got " + tokenMap[t.Type],
                                None: () => ""
                               );
-            value += " at " + Location.ToString();
+            if (!putPositionAtFront) value += " at " + Location.ToString();
             return value;
         }
     }
 
-    public interface ILocation { }
-
-    #region Term
-    // Term = Terminal string | NonTerminal string
-    public class Term
-    {
-        private class TerminalImpl
-        {
-            public string Value1 { get; set; } = default(string);
-            public TerminalImpl(string value1)
-            {
-                Value1 = value1;
-            }
-        }
-        private class NonTerminalImpl
-        {
-            public string Value1 { get; set; } = default(string);
-            public NonTerminalImpl(string value1)
-            {
-                Value1 = value1;
-            }
-        }
-        public TermState State { get; set; }
-        private TerminalImpl TerminalField;
-        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; State = TermState.Terminal; } }
-        private NonTerminalImpl NonTerminalField;
-        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; State = TermState.NonTerminal; } }
-        private Term() { }
-        public static Term Terminal(string value1)
-        {
-            Term result = new Term();
-            result.TerminalValue = new TerminalImpl(value1);
-            return result;
-        }
-        public static Term NonTerminal(string value1)
-        {
-            Term result = new Term();
-            result.NonTerminalValue = new NonTerminalImpl(value1);
-            return result;
-        }
-        public T1 Match<T1>(Func<string, T1> Terminal, Func<string, T1> NonTerminal)
-        {
-            switch (State)
-            {
-                case TermState.Terminal: return Terminal(TerminalValue.Value1);
-                case TermState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
-            }
-            return default(T1);
-        }
-        public override string ToString() => this.Match(Terminal: t => "Terminal " + t,
-                                                        NonTerminal: nt => "Nonterminal " + nt);
-    }
-    public enum TermState
-    {
-        Terminal, NonTerminal
-    }
-    #endregion
-
     #region TermSpecification
-    // TermSpecification = Terminal string | NonTerminal int | Option int[]
+    // TermSpecification = Terminal int | NonTerminal int | Option int int
     public class TermSpecification
     {
         private class TerminalImpl
         {
-            public string Value1 { get; set; } = default(string);
-            public TerminalImpl(string value1)
+            public int Value1 { get; }
+            public TerminalImpl(int value1)
             {
                 Value1 = value1;
             }
         }
         private class NonTerminalImpl
         {
-            public int Value1 { get; set; } = default(int);
+            public int Value1 { get; }
             public NonTerminalImpl(int value1)
             {
                 Value1 = value1;
@@ -353,10 +342,10 @@ namespace MParse
         }
         private class OptionImpl
         {
-            public int[] Value1 { get; set; } = default(int[]);
-            public OptionImpl(int[] value1)
+            public ImmutableList<int> Values { get; }
+            public OptionImpl(ImmutableList<int> vs)
             {
-                Value1 = value1;
+                Values = vs;
             }
         }
         public TermSpecificationState State { get; set; }
@@ -367,7 +356,7 @@ namespace MParse
         private OptionImpl OptionField;
         private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalField = null; NonTerminalField = null; State = TermSpecificationState.Option; } }
         private TermSpecification() { }
-        public static TermSpecification Terminal(string value1)
+        public static TermSpecification Terminal(int value1)
         {
             TermSpecification result = new TermSpecification();
             result.TerminalValue = new TerminalImpl(value1);
@@ -379,22 +368,25 @@ namespace MParse
             result.NonTerminalValue = new NonTerminalImpl(value1);
             return result;
         }
-        public static TermSpecification Option(params int[] value1)
+        public static TermSpecification Option(params int[] values)
         {
             TermSpecification result = new TermSpecification();
-            result.OptionValue = new OptionImpl(value1);
+            result.OptionValue = new OptionImpl(values.ToImmutableList());
             return result;
         }
-        public T1 Match<T1>(Func<string, T1> Terminal, Func<int, T1> NonTerminal, Func<int[], T1> Option)
+        public T1 Match<T1>(Func<int, T1> Terminal, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option)
         {
             switch (State)
             {
                 case TermSpecificationState.Terminal: return Terminal(TerminalValue.Value1);
                 case TermSpecificationState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
-                case TermSpecificationState.Option: return Option(OptionValue.Value1);
+                case TermSpecificationState.Option: return Option(OptionValue.Values);
             }
             return default(T1);
         }
+        public override string ToString() => this.Match(Terminal: t => "Terminal " + t,
+                                                        NonTerminal: nt => "Nonterminal " + nt,
+                                                        Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())));
     }
     public enum TermSpecificationState
     {
@@ -402,9 +394,12 @@ namespace MParse
     }
     #endregion
 
+    public interface ILocation { }
+
     public class Tree<T>
     {
         public T Value;
+
         public List<Tree<T>> Children { get; set; }
         public bool IsLeaf => Children.Count == 0;
 
@@ -440,49 +435,5 @@ namespace MParse
             public T Value;
             public ImmutableList<int> Directions;
         }
-    }
-
-    public class AST
-    {
-        public Term Term { get; set; }
-        public List<AST> Children { get; set; }
-        public bool IsLeaf => Children.Count == 0;
-
-        public AST()
-        {
-            Term = null;
-            Children = new List<AST>();
-        }
-
-        public AST(string terminal) : this(Term.Terminal(terminal), new List<AST>()) { }
-
-        public AST(Term t, List<AST> children)
-        {
-            Term = t;
-            Children = children;
-        }
-
-        public AST RemoveAll(Predicate<AST> p) => new AST(this.Term, this.Children.ToImmutableList().RemoveAll(p).Select(child => child.RemoveAll(p)).ToList());
-
-        public static AST FromTree(Tree<TermSpecification> t, ASTMap map)
-        {
-            AST _ast = new AST();
-            _ast.Term = t.Value.Match
-                        (
-                            Terminal: s => Term.Terminal(s),
-                            NonTerminal: nt => Term.NonTerminal(GetNonTerminal(map, nt)),
-                            Option: os => { if (t.Children.Count == 1) return t.Children[0].Value.Match(Terminal: _ => { throw new Exception(); },
-                                                                                                        NonTerminal: nt => Term.NonTerminal(GetNonTerminal(map, nt)),
-                                                                                                        Option: _ => AST.FromTree(t.Children[0], map).Term);
-                                            else throw new Exception(); }
-                        );
-            _ast.Children = _ast.Term.Match(Terminal: _ => new List<AST>(),
-                NonTerminal: nt => nt == nameof(MParse.epsilon) ? new List<AST>() : t.Children.Select(child => FromTree(child, map)).ToList());
-            return _ast;
-        }
-
-        private static string GetNonTerminal(ASTMap map, int nt) => map.Keys.Where(s => s.Item2 == nt)
-                                                                         .Select(s => s.Item1)
-                                                                         .First();
     }
 }

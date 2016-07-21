@@ -6,10 +6,11 @@ using System.Text;
 using System.Threading.Tasks;
 using AlgebraicTypes;
 
-using ParseState = AlgebraicTypes.Error<System.Tuple<string, string, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<string, int>>>, string>;
-using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<string, string, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<string, int>>>, string>,
-                                AlgebraicTypes.Error<System.Tuple<string, string, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<string, int>>>, string>>;
+using ParseState = AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>;
+using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>,
+                                AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>>;
 using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.TermSpecification>>;
+using AST = MParse.Tree<AlgebraicTypes.Either<MParse.Token, int>>;
 using T = MParse.TermSpecification;
 
 using static MParse.MParse;
@@ -18,30 +19,50 @@ namespace MParse
 {
     static class Program
     {
+        const int SEMICOLON = 0;
+        const int INCREMENT = 1;
+        const int DECREMENT = 2;
+        const int EQUALS = 3;
+        const int ID = 4;
+        const int INTEGER_LITERAL = 5;
+        const int STRING_LITERAL = 6;
+
         static void Main(string[] args)
         {
             ASTMap map = new ASTMap
             {
-                [Specifier(nameof(Start), 0)] = new List<T> { T.NonTerminal(1), T.Terminal(";"), T.Option(0, -1) },
+                [Specifier(nameof(Start), 0)] = new List<T> { T.NonTerminal(1), T.Terminal(SEMICOLON), T.Option(0, -1) },
                 [Specifier(nameof(Statement), 1)] = new List<T> { T.Option(2, 3, 4) },
-                [Specifier(nameof(Increment), 2)] = new List<T> { T.NonTerminal(7), T.Terminal("++") },
-                [Specifier(nameof(Decrement), 3)] = new List<T> { T.NonTerminal(7), T.Terminal("--") },
+                [Specifier(nameof(Increment), 2)] = new List<T> { T.Terminal(ID), T.Terminal(INCREMENT) },
+                [Specifier(nameof(Decrement), 3)] = new List<T> { T.Terminal(ID), T.Terminal(DECREMENT) },
                 [Specifier(nameof(Assignment), 4)] = new List<T> { T.Option(5, 6) },
-                [Specifier(nameof(Assignment1), 5)] = new List<T> { T.NonTerminal(7), T.Terminal("="), T.NonTerminal(7) },
-                [Specifier(nameof(Assignment1), 6)] = new List<T> { T.NonTerminal(7), T.Terminal("="), T.NonTerminal(10) },
-                [Specifier(nameof(ID), 7)] = new List<T> { T.Base() },
-                [Specifier(nameof(Literal), 8)] = new List<T> { T.Option(9, 10) },
-                [Specifier(nameof(IntLiteral), 9)] = new List<T> { T.Base() },
-                [Specifier(nameof(StringLiteral), 10)] = new List<T> { T.Base() }
+                [Specifier(nameof(Assignment1), 5)] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.Terminal(ID) },
+                [Specifier(nameof(Assignment1), 6)] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.NonTerminal(7) },
+                [Specifier(nameof(Literal), 7)] = new List<T> { T.Option(8, 9) },
+                [Specifier(nameof(IntLiteral), 8)] = new List<T> { T.Terminal(INTEGER_LITERAL) },
+                [Specifier(nameof(StringLiteral), 9)] = new List<T> { T.Terminal(STRING_LITERAL) }
             };
-            map.Initialise();
             while (true)
             {
-                MParse.DoParse(Start, Console.ReadLine(), map).Match
-                (
-                    Result: ast => { ast.PrintPretty("", true); return Unit.Nil; },
-                    Throw: e => { Console.WriteLine(e); return Unit.Nil; }
-                );
+                PrintPretty(DoParse(Start, new List<Token> { Token(ID, "abcd", new Line(0)), Token(INCREMENT, "++", new Line(4)) }.ToImmutableList(), map).Match
+                           (
+                               Result: ast => ast,
+                               Throw: terr =>
+                               {
+                                   Console.WriteLine(terr.ToString(new Dictionary<int, string>
+                                   {
+                                       [SEMICOLON] = "semicolon",
+                                       [INCREMENT] = "increment (++)",
+                                       [DECREMENT] = "decrement (--)",
+                                       [EQUALS] = "assignment operator (=)",
+                                       [ID] = "identifier",
+                                       [INTEGER_LITERAL] = "integer",
+                                       [STRING_LITERAL] = "string"
+                                   }));
+                                   return new AST(Either<Token, int>.Left(Token(-1, "Error", new Line(-1))));
+                               }
+                           ), "", true);
+                Console.ReadLine();
             }
         }
 
@@ -52,7 +73,7 @@ namespace MParse
             Console.SetCursorPosition(0, Console.CursorTop - (Console.WindowWidth >= Console.BufferWidth ? 1 : 0));
         }
 
-        public static void PrintPretty(this AST t, string indent, bool last) // With thanks to Will from http://stackoverflow.com/questions/1649027/how-do-i-print-out-a-tree-structure
+        public static void PrintPretty<T>(this Tree<T> t, string indent, bool last) // With thanks to Will from http://stackoverflow.com/questions/1649027/how-do-i-print-out-a-tree-structure
         {
             ClearLine();
             Console.Write(indent);
@@ -66,29 +87,37 @@ namespace MParse
                 Console.Write("├─");
                 indent += "│ ";
             }
-            Console.WriteLine(t.Term.ToString());
+            Console.WriteLine(t.Value.ToString());
             for (int i = 0; i < t.Children.Count; i++)
                 t.Children[i].PrintPretty(indent, i == t.Children.Count - 1);
 
         }
 
-        static ParseState Start(ParseState text) => text.Parse(Statement).Parse(';').Parse(Option(NewOption(Start, "statement"), NewOption(epsilon, "epsilon"))).Rule(0);
+        static ParseState Start(ParseState text) => text.Parse(Statement).Parse(SEMICOLON).Parse(Option(Option(Start, "statement"), Option(epsilon, "epsilon"))).Rule(0);
 
-        static NonTerminal Statement => Option(NewOption(Increment, "increment"), NewOption(Decrement, "decrement"), NewOption(Assignment, "assignment")).Rule(1);
+        static NonTerminal Statement => Option(Option(Increment, "increment"), Option(Decrement, "decrement"), Option(Assignment, "assignment")).Rule(1);
 
-        static ParseState Increment(ParseState text) => text.Parse(ID).Parse("++").Rule(2);
+        static ParseState Increment(ParseState text) => text.Parse(ID).Parse(INCREMENT).Rule(2);
 
-        static ParseState Decrement(ParseState text) => text.Parse(ID).Parse("--").Rule(3);
+        static ParseState Decrement(ParseState text) => text.Parse(ID).Parse(DECREMENT).Rule(3);
 
-        static NonTerminal Assignment => Option(NewOption(Assignment1, "assignment"), NewOption(Assignment2, "assignment")).Rule(4);
-        static ParseState Assignment1(ParseState text) => text.Parse(ID).Parse('=').Parse(ID).Rule(5);
-        static ParseState Assignment2(ParseState text) => text.Parse(ID).Parse('=').Parse(Literal).Rule(6);
+        static NonTerminal Assignment => Option(Option(Assignment1, "assignment"), Option(Assignment2, "assignment")).Rule(4);
+        static ParseState Assignment1(ParseState text) => text.Parse(ID).Parse(EQUALS).Parse(ID).Rule(5);
+        static ParseState Assignment2(ParseState text) => text.Parse(ID).Parse(EQUALS).Parse(Literal).Rule(6);
 
-        static ParseState ID(ParseState text) => text.ParseRegex(@"[_a-zA-Z](?:[a-zA-Z0-9]*)", "identifier").Rule(7);
+        static NonTerminal Literal => Option(Option(IntLiteral, "integer literal"), Option(StringLiteral, "string literal")).Rule(7);
+        static ParseState IntLiteral(ParseState text) => text.Parse(INTEGER_LITERAL).Rule(8);
+        static ParseState StringLiteral(ParseState text) => text.Parse(STRING_LITERAL).Rule(9);
+    }
 
-        static NonTerminal Literal => Option(NewOption(IntLiteral, "integer literal"), NewOption(StringLiteral, "string literal")).Rule(8);
-        static ParseState IntLiteral(ParseState text) => text.ParseWhile(c => char.IsDigit(c), "digit").Rule(9);
-        static ParseState StringLiteral(ParseState text) => text.ParseRegex(@""".*""", "string literal").Rule(10);
+    public class Line : ILocation
+    {
+        public int Loc { get; set; }
+        public Line(int loc) { Loc = loc; }
+        public override string ToString()
+        {
+            return $"({Loc})";
+        }
     }
 }
 
