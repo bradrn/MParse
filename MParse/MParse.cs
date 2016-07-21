@@ -6,16 +6,16 @@ using System.Text;
 using System.Threading.Tasks;
 using AlgebraicTypes;
 
-using TokenList = System.Collections.Immutable.ImmutableList<MParse.Token>;
-using ParseState = AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>;
-using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>,
-                                AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<MParse.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Token, int>>>, MParse.TokenError>>;
-using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.TermSpecification>>;
-using AST = MParse.Tree<AlgebraicTypes.Either<MParse.Token, int>>;
+using TokenList = System.Collections.Immutable.ImmutableList<MParse.Parser.Token>;
+using ParseState = AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Parser.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Parser.Token, int>>>, MParse.Parser.TokenError>;
+using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Parser.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Parser.Token, int>>>, MParse.Parser.TokenError>,
+                                AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Parser.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Parser.Token, int>>>, MParse.Parser.TokenError>>;
+using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
+using AST = MParse.Parser.Tree<AlgebraicTypes.Either<MParse.Parser.Token, int>>;
 
-namespace MParse
+namespace MParse.Parser
 {
-    public static class MParse
+    public static class Parser
     {
         public static Error<AST, TokenError> DoParse(NonTerminal Start, TokenList input, ASTMap map)
         {
