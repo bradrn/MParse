@@ -45,7 +45,7 @@ namespace MParse.Parser
             }.Initialise();
             while (true)
             {
-                PrintPretty(DoParse(Start, new List<Token> { Token(ID, "abcd", new Line(0)), Token(INCREMENT, "++", new Line(4)) }.ToImmutableList(), map).Match
+                PrintPretty(DoParse(Start, new List<Token> { Token(ID, "abcd", new Line(0)), Token(INCREMENT, "++", new Line(4)), Token(SEMICOLON, ";", new Line(6)) }.ToImmutableList(), map).Match
                            (
                                Result: ast => ast,
                                Throw: terr =>
