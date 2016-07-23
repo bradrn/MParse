@@ -22,6 +22,11 @@ namespace MParse.Lexer
             Value = value;
             Location = location;
         }
+
+        public override string ToString()
+        {
+            return $"Token({Type}, {Value}, {Location.ToString()})";
+        }
     }
 
     public interface ILocation { }
