@@ -42,7 +42,7 @@ namespace MParse.Parser
                 [Specifier(nameof(Literal), 7)] = new List<T> { T.Option(8, 9) },
                 [Specifier(nameof(IntLiteral), 8)] = new List<T> { T.Terminal(INTEGER_LITERAL) },
                 [Specifier(nameof(StringLiteral), 9)] = new List<T> { T.Terminal(STRING_LITERAL) }
-            };
+            }.Initialise();
             while (true)
             {
                 PrintPretty(DoParse(Start, new List<Token> { Token(ID, "abcd", new Line(0)), Token(INCREMENT, "++", new Line(4)) }.ToImmutableList(), map).Match

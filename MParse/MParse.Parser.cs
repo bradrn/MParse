@@ -149,6 +149,13 @@ namespace MParse.Parser
             return FromTree(_ast, log, map);
         }
 
+        public static ASTMap Initialise(this ASTMap map)
+        {
+            ASTMap _map = new ASTMap(map);
+            _map.Add(Specifier(nameof(epsilon), -1), new List<TermSpecification>());
+            return _map;
+        }
+
         private static AST FromTree(Tree<TermSpecification> t, ImmutableList<Either<Token, int>> log, ASTMap map, int position = 0)
         {
             Func<int, string> GetNonTerminal = nt => map.Keys.Where(s => s.Item2 == nt)
