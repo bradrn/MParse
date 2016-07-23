@@ -133,7 +133,7 @@ namespace MParse.Lexer
         public string ToString(Dictionary<int, string> tokenMap, bool putPositionAtFront = true)
         {
             string value = "";
-            if (putPositionAtFront) value += Location.ToString();
+            if (putPositionAtFront) value += Location.ToString() + " ";
             value += "Error: Expected ";
             value += Expected.Match(EOF: () => "EOF",
                                     Token: t => tokenMap[t],
