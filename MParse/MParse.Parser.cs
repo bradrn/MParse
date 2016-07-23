@@ -4,15 +4,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using AlgebraicTypes;
+using CSFunc.Types;
 using MParse.Lexer;
 
 using TokenList = System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>;
-using ParseState = AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>;
-using NonTerminal = System.Func<AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>,
-                                AlgebraicTypes.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<AlgebraicTypes.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>>;
+using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>;
+using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>,
+                                CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>>;
 using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
-using AST = MParse.Parser.Tree<AlgebraicTypes.Either<MParse.Lexer.Token, int>>;
+using AST = MParse.Parser.Tree<CSFunc.Types.Either<MParse.Lexer.Token, int>>;
 
 namespace MParse.Parser
 {

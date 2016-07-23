@@ -33,9 +33,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="AlgebraicTypes, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Algebraic Types\AlgebraicTypes\bin\Debug\AlgebraicTypes.dll</HintPath>
+    <Reference Include="CSFunc">
+      <HintPath>..\..\CSFunc\CSFunc\bin\Release\CSFunc.dll</HintPath>
     </Reference>
     <Reference Include="MParse, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
