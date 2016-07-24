@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define PRINT_INTERMEDIATE_RESULTS
+
+using System;
 using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Linq;
@@ -164,6 +166,10 @@ namespace MParse.Parser
                 }
             }
 
+#if PRINT_INTERMEDIATE_RESULTS
+            PrintPretty(_ast, "", true);
+#endif
+
             return FromTree(_ast);
         }
 
@@ -189,6 +195,37 @@ namespace MParse.Parser
                 Right: nt => _ast.Children.Select(child => FromTree(child)).ToList());
             return ast;
         }
+
+
+        // FOR DEBUGGING PURPOSES ONLY! WILL ONLY BE INVOKED IF PRINT_INTERMEDIATE_RESULTS IS DEFINED
+#if PRINT_INTERMEDIATE_RESULTS
+        private static void ClearLine() // Thanks to SomeNameNoFake from http://stackoverflow.com/questions/8946808/can-console-clear-be-used-to-only-clear-a-line-instead-of-whole-console
+        {
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write(new string(' ', Console.WindowWidth));
+            Console.SetCursorPosition(0, Console.CursorTop - (Console.WindowWidth >= Console.BufferWidth ? 1 : 0));
+        }
+
+        private static void PrintPretty<T>(this Tree<T> t, string indent, bool last) // With thanks to Will from http://stackoverflow.com/questions/1649027/how-do-i-print-out-a-tree-structure
+        {
+            ClearLine();
+            Console.Write(indent);
+            if (last)
+            {
+                Console.Write(@"└─");
+                indent += "  ";
+            }
+            else
+            {
+                Console.Write("├─");
+                indent += "│ ";
+            }
+            Console.WriteLine(t.Value.ToString());
+            for (int i = 0; i < t.Children.Count; i++)
+                t.Children[i].PrintPretty(indent, i == t.Children.Count - 1);
+
+        }
+#endif
     }
 
     #region TermSpecification
