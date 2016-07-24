@@ -98,57 +98,6 @@ namespace MParse.Parser
 
         public static Token Token(int type, string value, ILocation location) => new Token(type, value, location);
 
-        public static AST ProcessAST(ImmutableList<Either<Token, int>> log, ASTMap map)
-        {
-            Tree<TermSpecification> _ast = new Tree<TermSpecification>();
-            List<int> position = new List<int>();
-            bool first = true;
-            foreach (int nt in log.Reverse().Where(item => item.State == EitherState.Right).Select(item => item.Match(Left: tok => 0, Right: nt => nt)))
-            {
-                if (first)
-                {
-                    _ast.Value = TermSpecification.NonTerminal(nt);
-                    _ast.Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
-                                    .Select(t => new Tree<TermSpecification>(t))
-                                    .ToList();
-                    first = false;
-                }
-                else
-                {
-                    _ast.Rightmost(ts => (ts.State == TermSpecificationState.NonTerminal) || (ts.State == TermSpecificationState.Option))
-                        .Match
-                        (
-                            Just: rightmost =>
-                            {
-                                _ast.Navigate(rightmost).Value = TermSpecification.NonTerminal(nt);
-                                _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
-                                                                    .Select(t => new Tree<TermSpecification>(t))
-                                                                    .ToList();
-                                return Unit.Nil;
-                            },
-                            Nothing: () => Unit.Nil
-                        );
-                }
-            }
-            /*foreach (Token tok in log.Reverse().Where(item => item.State == EitherState.Left).Select(item => item.Match(Left: tok => tok, Right: nt => new Token())))
-            {
-                _ast.Rightmost(ts => ts.State == TermSpecificationState.Terminal)
-                    .Match
-                    (
-                        Just: rightmost =>
-                        {
-                            _ast.Navigate(rightmost).Value = TermSpecification.Terminal(;
-                            _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
-                                                                .Select(t => new Tree<TermSpecification>(t))
-                                                                .ToList();
-                            return Unit.Nil;
-                        },
-                        Nothing: () => Unit.Nil
-                    );
-            }*/
-            return FromTree(_ast, log, map);
-        }
-
         public static ASTMap Initialise(this ASTMap map)
         {
             ASTMap _map = new ASTMap(map);
@@ -156,42 +105,94 @@ namespace MParse.Parser
             return _map;
         }
 
-        private static AST FromTree(Tree<TermSpecification> t, ImmutableList<Either<Token, int>> log, ASTMap map, int position = 0)
+        public static AST ProcessAST(ImmutableList<Either<Token, int>> log, ASTMap map)
         {
-            Func<int, string> GetNonTerminal = nt => map.Keys.Where(s => s.Item2 == nt)
-                                                             .Select(s => s.Item1)
-                                                             .First();
-            ImmutableList<Token> tokenLog = log.Reverse().Where(item => item.State == EitherState.Left).Select(item => item.Match(Left: tok => tok, Right: nt => new Token())).ToImmutableList();
-            bool wasTerminal = false;
+            Tree<IntermediateASTEntry> _ast = new Tree<IntermediateASTEntry>();
+            List<int> position = new List<int>();
+            bool first = true;
+            foreach (Either<Token, int> item in log.Reverse()) //.Where(item => item.State == EitherState.Right).Select(item => item.Match(Left: tok => 0, Right: nt => nt)))
+            {
+                if (first)
+                {
+                    item.Match(Right: nt =>
+                    {
+                        _ast.Value = IntermediateASTEntry.NonTerminal(nt);
+                        _ast.Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                                        .Select(t => new Tree<IntermediateASTEntry>(t.Match(
+                                                        Terminal: i => IntermediateASTEntry.TerminalRoot(i),
+                                                        NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
+                                                        Option: os => IntermediateASTEntry.Option(os))))
+                                        .ToList();
+                        first = false;
+                        return Unit.Nil;
+                    }, Left: tok => Unit.Nil);
+                }
+                else
+                {
+                    item.Match
+                    (                                    
+                        Right: nt =>                     
+                            _ast.Rightmost(ts => (ts.State == IntermediateASTEntryState.NonTerminal) || (ts.State == IntermediateASTEntryState.Option))
+                            .Match                       
+                            (                            
+                                Just: rightmost =>       
+                                {                        
+                                    _ast.Navigate(rightmost).Value = IntermediateASTEntry.NonTerminal(nt);
+                                    _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                                                                        .Select(t => new Tree<IntermediateASTEntry>(t.Match(
+                                                                                        Terminal: i => IntermediateASTEntry.TerminalRoot(i),
+                                                                                        NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
+                                                                                        Option: os => IntermediateASTEntry.Option(os))))
+                                                                        .ToList();
+                                    return Unit.Nil;
+                                },
+                                Nothing: () => Unit.Nil
+                            ),
+                        Left: tok =>
+                            _ast.Rightmost(ts => (ts.State == IntermediateASTEntryState.TerminalRoot))
+                                .Match
+                                (
+                                    Just: rightmost =>
+                                    {
+                                        _ast.Navigate(rightmost).Value = IntermediateASTEntry.TerminalLeaf(tok);
+                                        _ast.Navigate(rightmost).Children = new List<Tree<IntermediateASTEntry>>();
+                                        return Unit.Nil;
+                                    },
+                                    Nothing: () => Unit.Nil
+                                )
+                    );
+                }
+            }
 
+            return FromTree(_ast);
+        }
+
+        private static AST FromTree(Tree<IntermediateASTEntry> _ast)
+        {
             AST ast = new AST();
-            ast.Value = t.Value.Match
+            ast.Value = _ast.Value.Match
                         (
-                            Terminal: i =>
-                            {
-                                if (tokenLog[position].Type != i) throw new Exception("Terminals did not match");
-                                wasTerminal = true;
-                                return Either<Token, int>.Left(tokenLog[position]);
-                            },
+                            TerminalLeaf: s => Either<Token, int>.Left(s),
+                            TerminalRoot: r => Either<Token, int>.Right(-100),
                             NonTerminal: nt => Either<Token, int>.Right(nt),
-                            Option: os => {
-                                if (t.Children.Count == 1) return t.Children[0].Value.Match(Terminal: _ => { throw new Exception("Cannot have a Terminal as a child of an Option"); },
-                                                                                            NonTerminal: nt => Either<Token, int>.Right(nt),
-                                                                                            Option: _ => { throw new Exception("Cannot have an Option as a child of an Option"); });
-                                else throw new Exception("More than one child of Option");
+                            Option: os =>
+                            {
+                                if (_ast.Children.Count == 1) return _ast.Children[0].Value.Match(TerminalRoot: _ => { throw new Exception(); },
+                                                                                                  TerminalLeaf: _ => { throw new Exception(); },
+                                                                                                  NonTerminal: nt => Either<Token, int>.Right(nt),
+                                                                                                  Option: _ => FromTree(_ast.Children[0]).Value);
+                                else throw new Exception();
                             }
                         );
-            ast.Children = ast.Value.Match
-                                     (
-                                        Left: _ => new List<AST>(),
-                                        Right: nt => nt == -1 ? new List<AST>() : t.Children.Select(child => FromTree(child, log, map, position + (wasTerminal ? 1 : 0))).ToList()
-                                     );
+            ast.Children = ast.Value.Match(
+                Left: _ => new List<AST>(),
+                Right: nt => _ast.Children.Select(child => FromTree(child)).ToList());
             return ast;
         }
     }
 
     #region TermSpecification
-    // TermSpecification = Terminal int | NonTerminal int | Option int int
+    // TermSpecification = Terminal int | NonTerminal int | Option ImmutableList<int>
     public class TermSpecification
     {
         private class TerminalImpl
@@ -261,6 +262,94 @@ namespace MParse.Parser
     public enum TermSpecificationState
     {
         Terminal, NonTerminal, Option
+    }
+    #endregion
+
+    #region IntermediateASTEntry
+    // IntermediateASTEntry = TerminalRoot int | TerminalLeaf Token | NonTerminal int | Option ImmutableList<int>
+    public class IntermediateASTEntry
+    {
+        private class TerminalRootImpl
+        {
+            public int Value1 { get; set; } = default(int);
+            public TerminalRootImpl(int value1)
+            {
+                Value1 = value1;
+            }
+        }
+        private class TerminalLeafImpl
+        {
+            public Token Value1 { get; set; } = default(Token);
+            public TerminalLeafImpl(Token value1)
+            {
+                Value1 = value1;
+            }
+        }
+        private class NonTerminalImpl
+        {
+            public int Value1 { get; set; } = default(int);
+            public NonTerminalImpl(int value1)
+            {
+                Value1 = value1;
+            }
+        }
+        private class OptionImpl
+        {
+            public ImmutableList<int> Value1 { get; set; } = default(ImmutableList<int>);
+            public OptionImpl(ImmutableList<int> value1)
+            {
+                Value1 = value1;
+            }
+        }
+        public IntermediateASTEntryState State { get; set; }
+        private TerminalRootImpl TerminalRootField;
+        private TerminalRootImpl TerminalRootValue { get { return TerminalRootField; } set { TerminalRootField = value; TerminalLeafField = null; NonTerminalField = null; OptionField = null; State = IntermediateASTEntryState.TerminalRoot; } }
+        private TerminalLeafImpl TerminalLeafField;
+        private TerminalLeafImpl TerminalLeafValue { get { return TerminalLeafField; } set { TerminalLeafField = value; TerminalRootField = null; NonTerminalField = null; OptionField = null; State = IntermediateASTEntryState.TerminalLeaf; } }
+        private NonTerminalImpl NonTerminalField;
+        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalRootField = null; TerminalLeafField = null; OptionField = null; State = IntermediateASTEntryState.NonTerminal; } }
+        private OptionImpl OptionField;
+        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; State = IntermediateASTEntryState.Option; } }
+        private IntermediateASTEntry() { }
+        public static IntermediateASTEntry TerminalRoot(int value1)
+        {
+            IntermediateASTEntry result = new IntermediateASTEntry();
+            result.TerminalRootValue = new TerminalRootImpl(value1);
+            return result;
+        }
+        public static IntermediateASTEntry TerminalLeaf(Token value1)
+        {
+            IntermediateASTEntry result = new IntermediateASTEntry();
+            result.TerminalLeafValue = new TerminalLeafImpl(value1);
+            return result;
+        }
+        public static IntermediateASTEntry NonTerminal(int value1)
+        {
+            IntermediateASTEntry result = new IntermediateASTEntry();
+            result.NonTerminalValue = new NonTerminalImpl(value1);
+            return result;
+        }
+        public static IntermediateASTEntry Option(ImmutableList<int> value1)
+        {
+            IntermediateASTEntry result = new IntermediateASTEntry();
+            result.OptionValue = new OptionImpl(value1);
+            return result;
+        }
+        public T1 Match<T1>(Func<int, T1> TerminalRoot, Func<Token, T1> TerminalLeaf, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option)
+        {
+            switch (State)
+            {
+                case IntermediateASTEntryState.TerminalRoot: return TerminalRoot(TerminalRootValue.Value1);
+                case IntermediateASTEntryState.TerminalLeaf: return TerminalLeaf(TerminalLeafValue.Value1);
+                case IntermediateASTEntryState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
+                case IntermediateASTEntryState.Option: return Option(OptionValue.Value1);
+            }
+            return default(T1);
+        }
+    }
+    public enum IntermediateASTEntryState
+    {
+        TerminalRoot, TerminalLeaf, NonTerminal, Option
     }
     #endregion
 
