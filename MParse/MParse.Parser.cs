@@ -383,6 +383,10 @@ namespace MParse.Parser
             }
             return default(T1);
         }
+        public override string ToString() => this.Match(TerminalRoot: t => "Root Terminal " + t,
+                                                        TerminalLeaf: l => "Leaf Terminal " + l.ToString(),
+                                                        NonTerminal: nt => "Nonterminal " + nt,
+                                                        Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())));
     }
     public enum IntermediateASTEntryState
     {
