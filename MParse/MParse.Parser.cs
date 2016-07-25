@@ -110,7 +110,7 @@ namespace MParse.Parser
         public static ASTMap Initialise(this ASTMap map)
         {
             ASTMap _map = new ASTMap(map);
-            _map.Add(Specifier(nameof(epsilon), -1), new List<TermSpecification>());
+            _map.Add(Specifier(nameof(epsilon), -1), new List<TermSpecification>() { });
             return _map;
         }
 
@@ -145,14 +145,22 @@ namespace MParse.Parser
                             .Match                       
                             (                            
                                 Just: rightmost =>       
-                                {                        
-                                    _ast.Navigate(rightmost).Value = IntermediateASTEntry.NonTerminal(nt);
-                                    _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
-                                                                        .Select(t => new Tree<IntermediateASTEntry>(t.Match(
-                                                                                        Terminal: i => IntermediateASTEntry.TerminalRoot(i),
-                                                                                        NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
-                                                                                        Option: os => IntermediateASTEntry.Option(os))))
-                                                                        .ToList();
+                                {
+                                    if (nt == -1)
+                                    {
+                                        _ast.Navigate(rightmost).Value = IntermediateASTEntry.Epsilon();
+                                        _ast.Navigate(rightmost).Children = new List<Tree<IntermediateASTEntry>>();
+                                    }
+                                    else
+                                    {
+                                        _ast.Navigate(rightmost).Value = IntermediateASTEntry.NonTerminal(nt);
+                                        _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                                                                            .Select(t => new Tree<IntermediateASTEntry>(t.Match(
+                                                                                            Terminal: i => IntermediateASTEntry.TerminalRoot(i),
+                                                                                            NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
+                                                                                            Option: os => IntermediateASTEntry.Option(os))))
+                                                                            .ToList();
+                                    }
                                     return Unit.Nil;
                                 },
                                 Nothing: () => Unit.Nil
@@ -186,16 +194,18 @@ namespace MParse.Parser
             ast.Value = _ast.Value.Match
                         (
                             TerminalLeaf: s => Either<Token, int>.Left(s),
-                            TerminalRoot: r => Either<Token, int>.Right(-100),
+                            TerminalRoot: _ => { throw new Exception(); },
                             NonTerminal: nt => Either<Token, int>.Right(nt),
                             Option: os =>
                             {
                                 if (_ast.Children.Count == 1) return _ast.Children[0].Value.Match(TerminalRoot: _ => { throw new Exception(); },
                                                                                                   TerminalLeaf: _ => { throw new Exception(); },
                                                                                                   NonTerminal: nt => Either<Token, int>.Right(nt),
-                                                                                                  Option: _ => FromTree(_ast.Children[0]).Value);
+                                                                                                  Option: _ => FromTree(_ast.Children[0]).Value,
+                                                                                                  Epsilon: () => { throw new Exception(); });
                                 else throw new Exception();
-                            }
+                            },
+                            Epsilon: () => Either<Token, int>.Right(-1)
                         );
             ast.Children = ast.Value.Match(
                 Left: _ => new List<AST>(),
@@ -310,7 +320,7 @@ namespace MParse.Parser
     #endregion
 
     #region IntermediateASTEntry
-    // IntermediateASTEntry = TerminalRoot int | TerminalLeaf Token | NonTerminal int | Option ImmutableList<int>
+    // IntermediateASTEntry = TerminalRoot int | TerminalLeaf Token | NonTerminal int | Option ImmutableList<int> | Epsilon
     public class IntermediateASTEntry
     {
         private class TerminalRootImpl
@@ -345,15 +355,23 @@ namespace MParse.Parser
                 Value1 = value1;
             }
         }
+        private class EpsilonImpl
+        {
+            public EpsilonImpl()
+            {
+            }
+        }
         public IntermediateASTEntryState State { get; set; }
         private TerminalRootImpl TerminalRootField;
-        private TerminalRootImpl TerminalRootValue { get { return TerminalRootField; } set { TerminalRootField = value; TerminalLeafField = null; NonTerminalField = null; OptionField = null; State = IntermediateASTEntryState.TerminalRoot; } }
+        private TerminalRootImpl TerminalRootValue { get { return TerminalRootField; } set { TerminalRootField = value; TerminalLeafField = null; NonTerminalField = null; OptionField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalRoot; } }
         private TerminalLeafImpl TerminalLeafField;
-        private TerminalLeafImpl TerminalLeafValue { get { return TerminalLeafField; } set { TerminalLeafField = value; TerminalRootField = null; NonTerminalField = null; OptionField = null; State = IntermediateASTEntryState.TerminalLeaf; } }
+        private TerminalLeafImpl TerminalLeafValue { get { return TerminalLeafField; } set { TerminalLeafField = value; TerminalRootField = null; NonTerminalField = null; OptionField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalLeaf; } }
         private NonTerminalImpl NonTerminalField;
-        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalRootField = null; TerminalLeafField = null; OptionField = null; State = IntermediateASTEntryState.NonTerminal; } }
+        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalRootField = null; TerminalLeafField = null; OptionField = null; EpsilonField = null; State = IntermediateASTEntryState.NonTerminal; } }
         private OptionImpl OptionField;
-        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; State = IntermediateASTEntryState.Option; } }
+        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; EpsilonField = null; State = IntermediateASTEntryState.Option; } }
+        private EpsilonImpl EpsilonField;
+        private EpsilonImpl EpsilonValue { get { return EpsilonField; } set { EpsilonField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; State = IntermediateASTEntryState.Epsilon; } }
         private IntermediateASTEntry() { }
         public static IntermediateASTEntry TerminalRoot(int value1)
         {
@@ -379,7 +397,13 @@ namespace MParse.Parser
             result.OptionValue = new OptionImpl(value1);
             return result;
         }
-        public T1 Match<T1>(Func<int, T1> TerminalRoot, Func<Token, T1> TerminalLeaf, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option)
+        public static IntermediateASTEntry Epsilon()
+        {
+            IntermediateASTEntry result = new IntermediateASTEntry();
+            result.EpsilonValue = new EpsilonImpl();
+            return result;
+        }
+        public T1 Match<T1>(Func<int, T1> TerminalRoot, Func<Token, T1> TerminalLeaf, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option, Func<T1> Epsilon)
         {
             switch (State)
             {
@@ -387,17 +411,19 @@ namespace MParse.Parser
                 case IntermediateASTEntryState.TerminalLeaf: return TerminalLeaf(TerminalLeafValue.Value1);
                 case IntermediateASTEntryState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
                 case IntermediateASTEntryState.Option: return Option(OptionValue.Value1);
+                case IntermediateASTEntryState.Epsilon: return Epsilon();
             }
             return default(T1);
         }
         public override string ToString() => this.Match(TerminalRoot: t => "Root Terminal " + t,
-                                                        TerminalLeaf: l => "Leaf Terminal " + l.ToString(),
-                                                        NonTerminal: nt => "Nonterminal " + nt,
-                                                        Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())));
+                                                                TerminalLeaf: l => "Leaf Terminal " + l.ToString(),
+                                                                NonTerminal: nt => "Nonterminal " + nt,
+                                                                Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())),
+                                                                Epsilon: () => "Epsilon");
     }
     public enum IntermediateASTEntryState
     {
-        TerminalRoot, TerminalLeaf, NonTerminal, Option
+        TerminalRoot, TerminalLeaf, NonTerminal, Option, Epsilon
     }
     #endregion
 
