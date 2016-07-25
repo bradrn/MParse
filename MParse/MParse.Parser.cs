@@ -29,7 +29,7 @@ namespace MParse.Parser
 #if PRINT_INTERMEDIATE_RESULTS
             parsed.Map(value =>
             {
-                value.Item3.ForEach(item => item.Match(Left: tok => { Console.WriteLine(tok.ToString()); return Unit.Nil; },
+                value.Item3.Reverse().ForEach(item => item.Match(Left: tok => { Console.WriteLine(tok.ToString()); return Unit.Nil; },
                                                      Right: nt => { Console.WriteLine(nt); return Unit.Nil; })); return Unit.Nil;
             });
 #endif
