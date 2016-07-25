@@ -26,6 +26,13 @@ namespace MParse.Parser
             parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
                                           : ParseState.Throw(new TokenError(TokenError.ExpectedValue.EOF(), TokenError.GotValue.Token(state.Item2[0]), state.Item2[0].Location)));
+#if PRINT_INTERMEDIATE_RESULTS
+            parsed.Map(value =>
+            {
+                value.Item3.ForEach(item => item.Match(Left: tok => { Console.WriteLine(tok.ToString()); return Unit.Nil; },
+                                                     Right: nt => { Console.WriteLine(nt); return Unit.Nil; })); return Unit.Nil;
+            });
+#endif
             return parsed.Map(value => ProcessAST(value.Item3, map));
         }
 
