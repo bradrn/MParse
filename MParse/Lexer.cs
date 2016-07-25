@@ -36,7 +36,7 @@ namespace MParse.Lexer
         public class ExpectedValue
         {
             // ExpectedValue = EOF | Token int | Option string[]
-            private ExpectedValueState State { get; set; }
+            public ExpectedValueState State { get; set; }
             private Unit EOFField;
             private Unit EOFValue { get { return EOFField; } set { EOFField = value; TokenField = 0; OptionField = null; State = ExpectedValueState.EOF; } }
             private int TokenField;
@@ -80,7 +80,7 @@ namespace MParse.Lexer
         public class GotValue
         {
             // GotValue = EOF | Token Token | None
-            private GotValueState State { get; set; }
+            public GotValueState State { get; set; }
             private Unit EOFField;
             private Unit EOFValue { get { return EOFField; } set { EOFField = value; TokenField = new Token(); NoneField = null; State = GotValueState.EOF; } }
             private Token TokenField;
