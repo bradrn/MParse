@@ -36,10 +36,6 @@ namespace MParse.Lexer
         public class ExpectedValue
         {
             // ExpectedValue = EOF | Token int | Option string[]
-            private enum ExpectedValueState
-            {
-                EOF, Token, Option
-            }
             private ExpectedValueState State { get; set; }
             private Unit EOFField;
             private Unit EOFValue { get { return EOFField; } set { EOFField = value; TokenField = 0; OptionField = null; State = ExpectedValueState.EOF; } }
@@ -77,13 +73,13 @@ namespace MParse.Lexer
                 return default(T1);
             }
         }
+        public enum ExpectedValueState
+        {
+            EOF, Token, Option
+        }
         public class GotValue
         {
             // GotValue = EOF | Token Token | None
-            private enum GotValueState
-            {
-                EOF, Token, None
-            }
             private GotValueState State { get; set; }
             private Unit EOFField;
             private Unit EOFValue { get { return EOFField; } set { EOFField = value; TokenField = new Token(); NoneField = null; State = GotValueState.EOF; } }
@@ -120,6 +116,10 @@ namespace MParse.Lexer
                 }
                 return default(T1);
             }
+        }
+        public enum GotValueState
+        {
+            EOF, Token, None
         }
         public ExpectedValue Expected { get; }
         public GotValue Got { get; }
