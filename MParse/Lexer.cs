@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -9,6 +10,30 @@ namespace MParse.Lexer
 {
     public class Lexer
     {
+        public ImmutableList<KeyValuePair<string, int>> TokenSpecifications { get; private set; }
+        public Lexer(params KeyValuePair<string, int>[] tokenSpecifications)
+        {
+            List<KeyValuePair<string, int>> _tokenSpecifications = new List<KeyValuePair<string, int>>();
+            foreach (KeyValuePair<string, int> tokenSpecification in tokenSpecifications)
+            {
+                _tokenSpecifications.Add(tokenSpecification);
+            }
+            TokenSpecifications = _tokenSpecifications.ToImmutableList();
+        }
+        public ImmutableList<Token> Lex(string input, Func<int, int, ILocation> locator)
+        {
+            List<Token> tokens = new List<Token>();
+            string cur = input;
+            foreach (KeyValuePair<string, int> tokenSpecification in TokenSpecifications)
+            {
+                Match m = Regex.Match(cur, @"\A" + tokenSpecification.Key);
+                if (m.Success)
+                {
+                    tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(m.Index, m.Length)));
+                }
+            }
+            return tokens.ToImmutableList();
+        }
     }
 
     public struct Token
@@ -154,27 +179,5 @@ namespace MParse.Lexer
             if (!putPositionAtFront) value += " at " + Location.ToString();
             return value;
         }
-    }
-
-    public class eNFA
-    {
-        private Dictionary<char, int> colmap = new Dictionary<char, int>();
-        private int[,] table;
-
-        public eNFA(string[] columns, int[,] table)
-        {
-            if (columns.Length != table.GetLength(1)) throw new ArgumentException("Column numbers did not match up");
-            this.table = table;
-            colmap = columns.SelectMany((s, i) => s.Select(c => new KeyValuePair<char, int>(c, i)))
-                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-        }
-
-        public int this[int state, char input]
-        {
-            get { return table[state, colmap[input]]; }
-            set { table[state, colmap[input]] = value; }
-        }
-
-        public int[,] GetTable() => table;
     }
 }
