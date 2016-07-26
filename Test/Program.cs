@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using CSFunc.Types;
 using MParse.Lexer;
 
-using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>;
-using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>,
-                                CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Lexer.TokenError>>;
+using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Parser.ParseError>;
+using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Parser.ParseError>,
+                                CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Parser.ParseError>>;
 using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
 using AST = MParse.Parser.Tree<CSFunc.Types.Either<MParse.Lexer.Token, int>>;
 using T = MParse.Parser.TermSpecification;
@@ -45,7 +45,13 @@ namespace MParse.Parser
             }.Initialise();
             while (true)
             {
-                PrintPretty(DoParse(Start, new List<Token> { Token(ID, "abcd", new Line(0)), Token(INCREMENT, "++", new Line(4)), Token(SEMICOLON, ";", new Line(6)) }.ToImmutableList(), map).Match
+                PrintPretty(DoParse(Start, new List<Token> { Token(ID,        "abcd", new Line(0)),
+                                                             Token(INCREMENT, "++",   new Line(4)),
+                                                             Token(SEMICOLON, ";",    new Line(6)),
+                                                             Token(ID,        "e",    new Line(7)),
+                                                             Token(EQUALS,    "=",    new Line(8)),
+                                                             Token(INTEGER_LITERAL, "1", new Line(9)),
+                                                             Token(SEMICOLON, ";",    new Line(10))}.ToImmutableList(), map).Match
                            (
                                Result: ast => ast,
                                Throw: terr =>
@@ -94,7 +100,21 @@ namespace MParse.Parser
 
         }
 
-        static ParseState Start(ParseState text) => text.Parse(Statement).Parse(SEMICOLON).Parse(Option(Option(Start, "statement"), Option(epsilon, "epsilon"))).Rule(0);
+        static ParseState Start(ParseState text)
+        {
+            ParseState parsed = text.Parse(Statement).Parse(SEMICOLON);
+            ParseState parsed2 = parsed.Parse(Start);
+            if (parsed2.State == ErrorState.Throw)
+            {
+                if (!parsed2.Match(Result: _ => false, Throw: terr => terr.Expected.Match(EOF: () => false,
+                                                                                          Token: tok => tok == SEMICOLON,
+                                                                                          Option: o => false)))
+                {
+                    parsed2 = parsed.Parse(epsilon);
+                }
+            }
+            return parsed2.Rule(0);
+        }
 
         static NonTerminal Statement => Option(Option(Increment, "increment"), Option(Decrement, "decrement"), Option(Assignment, "assignment")).Rule(1);
 
