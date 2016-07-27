@@ -25,20 +25,23 @@ namespace MParse.Lexer
             List<Token> tokens = new List<Token>();
             int i = 0;
             string cur = input;
+            bool hasFoundMatch = false;
             while (cur != "")
             {
+                hasFoundMatch = false;
                 foreach (KeyValuePair<string, int> tokenSpecification in TokenSpecifications)
                 {
                     Match m = Regex.Match(cur, @"\A" + tokenSpecification.Key);
                     if (m.Success)
                     {
                         tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(m.Index, m.Length)));
-                        cur = cur.Substring(m.Length - 1);
+                        cur = cur.Substring(m.Length);
                         i += m.Length;
+                        hasFoundMatch = true;
                         break;
                     }
                 }
-                return Error<ImmutableList<Token>, TokenError>.Throw(new MParse.Lexer.TokenError(locator(i, 0)));
+                if (!hasFoundMatch) return Error<ImmutableList<Token>, TokenError>.Throw(new MParse.Lexer.TokenError(locator(i, 0)));
             }
             return Error<ImmutableList<Token>, TokenError>.Result(tokens.ToImmutableList());
         }
