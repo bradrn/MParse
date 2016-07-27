@@ -20,7 +20,7 @@ namespace MParse.Lexer
             }
             TokenSpecifications = _tokenSpecifications.ToImmutableList();
         }
-        public Error<ImmutableList<Token>, TokenError> Lex(string input, Func<int, int, ILocation> locator)
+        public Error<ImmutableList<Token>, LexerError> Lex(string input, Func<int, int, ILocation> locator)
         {
             List<Token> tokens = new List<Token>();
             int i = 0;
@@ -41,9 +41,9 @@ namespace MParse.Lexer
                         break;
                     }
                 }
-                if (!hasFoundMatch) return Error<ImmutableList<Token>, TokenError>.Throw(new MParse.Lexer.TokenError(locator(i, 0)));
+                if (!hasFoundMatch) return Error<ImmutableList<Token>, LexerError>.Throw(new MParse.Lexer.LexerError(cur[0], locator(i, 0)));
             }
-            return Error<ImmutableList<Token>, TokenError>.Result(tokens.ToImmutableList());
+            return Error<ImmutableList<Token>, LexerError>.Result(tokens.ToImmutableList());
         }
     }
 
@@ -73,6 +73,23 @@ namespace MParse.Lexer
         public TokenError(ILocation location)
         {
             Location = location;
+        }
+    }
+
+    public class LexerError : TokenError
+    {
+        public char Next { get; }
+        public LexerError(char next, ILocation location) : base(location)
+        {
+            Next = next;
+        }
+        public string ToString(bool putPositionAtFront = true)
+        {
+            string result = "";
+            if (putPositionAtFront) result += $"{Location.ToString()} ";
+            result += $"Error: Unexpected character {Next}";
+            if (!putPositionAtFront) result += $"at {Location.ToString()}";
+            return result;
         }
     }
 }

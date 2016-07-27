@@ -55,7 +55,7 @@ namespace Demo
                                     new TSpec(@"[0-9]+", INTEGER_LITERAL),
                                     new TSpec(@""".*""", STRING_LITERAL),
                                     new TSpec(@"\s", -1));
-                Error<ImmutableList<Token>, TokenError> toks = l.Lex(Console.ReadLine(), (s, len) => new Line(s));
+                Error<ImmutableList<Token>, LexerError> toks = l.Lex(Console.ReadLine(), (s, len) => new Line(s));
                 toks = toks.Map(ts => ts.Where(tok => tok.Type != -1).ToImmutableList());
                 toks.Match(ts => { ts.ForEach(tok => Console.WriteLine(tok)); return Unit.Nil; }, err => Unit.Nil);
                 Console.WriteLine(); Console.WriteLine(); Console.WriteLine();
