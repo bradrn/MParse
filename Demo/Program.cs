@@ -53,35 +53,39 @@ namespace Demo
                                     new TSpec(@"=", EQUALS),
                                     new TSpec(@"[a-zA-Z_][a-zA-Z0-9_]*", ID),
                                     new TSpec(@"[0-9]+", INTEGER_LITERAL),
-                                    new TSpec(@""".*""", STRING_LITERAL));
+                                    new TSpec(@""".*""", STRING_LITERAL),
+                                    new TSpec(@"\s", -1));
                 Error<ImmutableList<Token>, TokenError> toks = l.Lex(Console.ReadLine(), (s, len) => new Line(s));
+                toks = toks.Map(ts => ts.Where(tok => tok.Type != -1).ToImmutableList());
                 toks.Match(ts => { ts.ForEach(tok => Console.WriteLine(tok)); return Unit.Nil; }, err => Unit.Nil);
                 Console.WriteLine(); Console.WriteLine(); Console.WriteLine();
-                PrintPretty(DoParse(Start, new List<Token> { Token(ID,        "abcd", new Line(0)),
-                                                             Token(INCREMENT, "++",   new Line(4)),
-                                                             Token(SEMICOLON, ";",    new Line(6)),
-                                                             Token(ID,        "e",    new Line(7)),
-                                                             Token(EQUALS,    "=",    new Line(8)),
-                                                             Token(INTEGER_LITERAL, "1", new Line(9)),
-                                                             Token(SEMICOLON, ";",    new Line(10))}.ToImmutableList(), map).Match
-                           (
-                               Result: ast => ast,
-                               Throw: terr =>
-                               {
-                                   Console.WriteLine(terr.ToString(new Dictionary<int, string>
-                                   {
-                                       [SEMICOLON] = "semicolon",
-                                       [INCREMENT] = "increment (++)",
-                                       [DECREMENT] = "decrement (--)",
-                                       [EQUALS] = "assignment operator (=)",
-                                       [ID] = "identifier",
-                                       [INTEGER_LITERAL] = "integer",
-                                       [STRING_LITERAL] = "string"
-                                   }));
-                                   return new AST(Either<Token, int>.Left(Token(-1, "Error", new Line(-1))));
-                               }
-                           ), "", true);
-                Console.ReadLine();
+                toks.Match
+                (
+                    Throw: terr => { Console.WriteLine(terr.ToString()); return Unit.Nil; },
+                    Result: ts =>
+                    {
+                        PrintPretty(DoParse(Start, ts, map).Match
+                                   (
+                                       Result: ast => ast,
+                                       Throw: terr =>
+                                       {
+                                           Console.WriteLine(terr.ToString(new Dictionary<int, string>
+                                           {
+                                               [SEMICOLON] = "semicolon",
+                                               [INCREMENT] = "increment (++)",
+                                               [DECREMENT] = "decrement (--)",
+                                               [EQUALS] = "assignment operator (=)",
+                                               [ID] = "identifier",
+                                               [INTEGER_LITERAL] = "integer",
+                                               [STRING_LITERAL] = "string"
+                                           }));
+                                           return new AST(Either<Token, int>.Left(Token(-1, "Error", new Line(-1))));
+                                       }
+                                   ), "", true);
+                        Console.ReadLine();
+                        return Unit.Nil;
+                    }
+                );
             }
         }
 
