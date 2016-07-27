@@ -14,6 +14,7 @@ using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collectio
 using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
 using AST = MParse.Parser.Tree<CSFunc.Types.Either<MParse.Lexer.Token, int>>;
 using T = MParse.Parser.TermSpecification;
+using TSpec = System.Collections.Generic.KeyValuePair<string, int>;
 
 using static MParse.Parser.Parser;
 
@@ -46,7 +47,16 @@ namespace Demo
             }.Initialise();
             while (true)
             {
-                
+                Lexer l = new Lexer(new TSpec(@";", SEMICOLON),
+                                    new TSpec(@"\+\+", INCREMENT),
+                                    new TSpec(@"--", DECREMENT),
+                                    new TSpec(@"=", EQUALS),
+                                    new TSpec(@"[a-zA-Z_][a-zA-Z0-9_]*", ID),
+                                    new TSpec(@"[0-9]+", INTEGER_LITERAL),
+                                    new TSpec(@""".*""", STRING_LITERAL));
+                Error<ImmutableList<Token>, TokenError> toks = l.Lex(Console.ReadLine(), (s, len) => new Line(s));
+                toks.Match(ts => { ts.ForEach(tok => Console.WriteLine(tok)); return Unit.Nil; }, err => Unit.Nil);
+                Console.WriteLine(); Console.WriteLine(); Console.WriteLine();
                 PrintPretty(DoParse(Start, new List<Token> { Token(ID,        "abcd", new Line(0)),
                                                              Token(INCREMENT, "++",   new Line(4)),
                                                              Token(SEMICOLON, ";",    new Line(6)),
