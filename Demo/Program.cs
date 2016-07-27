@@ -54,7 +54,7 @@ namespace Demo
                                     new TSpec(@"[a-zA-Z_][a-zA-Z0-9_]*", ID),
                                     new TSpec(@"[0-9]+", INTEGER_LITERAL),
                                     new TSpec(@""".*""", STRING_LITERAL),
-                                    new TSpec(@"\s|\\\\.*$", -1));
+                                    new TSpec(@"\s|(//.*)$", -1));
                 string input = "";
                 while (true) { string read = Console.ReadLine(); if (read == "") { break; } input += read + Environment.NewLine; }
                 Error<ImmutableList<Token>, LexerError> toks = l.Lex(input, (s, len) => new Line(s));
