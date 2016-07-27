@@ -59,8 +59,6 @@ namespace Demo
                 while (true) { string read = Console.ReadLine(); if (read == "") { break; } input += read + Environment.NewLine; }
                 Error<ImmutableList<Token>, LexerError> toks = l.Lex(input, (s, len) => new Line(s));
                 toks = toks.Map(ts => ts.Where(tok => tok.Type != -1).ToImmutableList());
-                toks.Match(ts => { ts.ForEach(tok => Console.WriteLine(tok)); return Unit.Nil; }, err => Unit.Nil);
-                Console.WriteLine(); Console.WriteLine(); Console.WriteLine();
                 toks.Match
                 (
                     Throw: terr => { Console.WriteLine(terr.ToString()); return Unit.Nil; },
