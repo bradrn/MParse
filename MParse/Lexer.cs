@@ -31,7 +31,7 @@ namespace MParse.Lexer
                 hasFoundMatch = false;
                 foreach (KeyValuePair<string, int> tokenSpecification in TokenSpecifications)
                 {
-                    Match m = Regex.Match(cur, @"\A" + tokenSpecification.Key);
+                    Match m = Regex.Match(cur, @"\A" + tokenSpecification.Key, RegexOptions.Multiline);
                     if (m.Success)
                     {
                         tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(m.Index, m.Length)));
