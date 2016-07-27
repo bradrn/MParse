@@ -34,7 +34,7 @@ namespace MParse.Lexer
                     Match m = Regex.Match(cur, @"\A" + tokenSpecification.Key, RegexOptions.Multiline);
                     if (m.Success)
                     {
-                        tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(m.Index, m.Length)));
+                        tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(i, m.Length)));
                         cur = cur.Substring(m.Length);
                         i += m.Length;
                         hasFoundMatch = true;
