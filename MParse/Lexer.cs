@@ -23,6 +23,7 @@ namespace MParse.Lexer
         public Error<ImmutableList<Token>, TokenError> Lex(string input, Func<int, int, ILocation> locator)
         {
             List<Token> tokens = new List<Token>();
+            int i = 0;
             string cur = input;
             while (cur != "")
             {
@@ -33,8 +34,11 @@ namespace MParse.Lexer
                     {
                         tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(m.Index, m.Length)));
                         cur = cur.Substring(m.Length - 1);
+                        i += m.Length;
+                        break;
                     }
                 }
+                return Error<ImmutableList<Token>, TokenError>.Throw(new MParse.Lexer.TokenError(locator(i, 0)));
             }
             return Error<ImmutableList<Token>, TokenError>.Result(tokens.ToImmutableList());
         }
