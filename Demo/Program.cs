@@ -54,8 +54,10 @@ namespace Demo
                                     new TSpec(@"[a-zA-Z_][a-zA-Z0-9_]*", ID),
                                     new TSpec(@"[0-9]+", INTEGER_LITERAL),
                                     new TSpec(@""".*""", STRING_LITERAL),
-                                    new TSpec(@"\s", -1));
-                Error<ImmutableList<Token>, LexerError> toks = l.Lex(Console.ReadLine(), (s, len) => new Line(s));
+                                    new TSpec(@"\s|\\\\.*$", -1));
+                string input = "";
+                while (true) { string read = Console.ReadLine(); if (read == "") { break; } input += read + Environment.NewLine; }
+                Error<ImmutableList<Token>, LexerError> toks = l.Lex(input, (s, len) => new Line(s));
                 toks = toks.Map(ts => ts.Where(tok => tok.Type != -1).ToImmutableList());
                 toks.Match(ts => { ts.ForEach(tok => Console.WriteLine(tok)); return Unit.Nil; }, err => Unit.Nil);
                 Console.WriteLine(); Console.WriteLine(); Console.WriteLine();
