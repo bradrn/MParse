@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CSFunc.Types;
-using MParse.Lexer;
 
 using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Parser.ParseError>;
 using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Parser.ParseError>,
@@ -16,7 +15,7 @@ using T = MParse.Parser.TermSpecification;
 
 using static MParse.Parser.Parser;
 
-namespace MParse.Parser
+namespace Demo
 {
     static class Program
     {
@@ -45,6 +44,7 @@ namespace MParse.Parser
             }.Initialise();
             while (true)
             {
+                
                 PrintPretty(DoParse(Start, new List<Token> { Token(ID,        "abcd", new Line(0)),
                                                              Token(INCREMENT, "++",   new Line(4)),
                                                              Token(SEMICOLON, ";",    new Line(6)),
