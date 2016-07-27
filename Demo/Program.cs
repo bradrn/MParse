@@ -82,7 +82,6 @@ namespace Demo
                                            return new AST(Either<Token, int>.Left(Token(-1, "Error", new Line(-1))));
                                        }
                                    ), "", true);
-                        Console.ReadLine();
                         return Unit.Nil;
                     }
                 );
