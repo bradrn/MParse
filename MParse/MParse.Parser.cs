@@ -25,7 +25,7 @@ namespace MParse.Parser
             ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, ImmutableList<Either<Token, int>>.Empty)).Parse(Start);
             parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
-                                          : ParseState.Throw(new ParseError(TokenError.ExpectedValue.EOF(), TokenError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state)));
+                                          : ParseState.Throw(new ParseError(ParseError.ExpectedValue.EOF(), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state)));
 #if PRINT_INTERMEDIATE_RESULTS
             parsed.Map(value =>
             {
@@ -48,12 +48,12 @@ namespace MParse.Parser
                                                                state.Item1.Add(state.Item2[0]),
                                                                state.Item2.Skip(1).ToImmutableList(),
                                                                state.Item3.Add(Either<Token, int>.Left(state.Item2[0]))))
-                                           : ParseState.Throw(new ParseError(TokenError.ExpectedValue.Token(token), TokenError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state))
+                                           : ParseState.Throw(new ParseError(ParseError.ExpectedValue.Token(token), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state))
                             select result);
                 }
                 catch (ArgumentOutOfRangeException)
                 {
-                    return prev.Bind(state => ParseState.Throw(new ParseError(TokenError.ExpectedValue.Token(token), TokenError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state)));
+                    return prev.Bind(state => ParseState.Throw(new ParseError(ParseError.ExpectedValue.Token(token), ParseError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state)));
                 }
             }
             else return prev;
@@ -86,7 +86,7 @@ namespace MParse.Parser
                         if (result.State == ErrorState.Result) return result;
                         else continue;
                     }
-                    return prev.Bind(state => ParseState.Throw(new ParseError(TokenError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), TokenError.GotValue.None(), state.Item1[state.Item1.Count - 1].Location, state)));
+                    return prev.Bind(state => ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.None(), state.Item1[state.Item1.Count - 1].Location, state)));
                 }
                 else return prev;
             };
