@@ -77,7 +77,10 @@ namespace MParse.Parser
                         if (result.State == ErrorState.Result) return result;
                         else continue;
                     }
-                    return prev.Bind(state => ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.None(), state.Item1[state.Item1.Count - 1].Location, state)));
+                    return prev.Bind(state =>
+                        state.Item2.Count == 0
+                        ? ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state))
+                        : ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.None(), state.Item2[0].Location, state)));
                 }
                 else return prev;
             };
