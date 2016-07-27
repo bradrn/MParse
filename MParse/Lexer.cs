@@ -20,19 +20,23 @@ namespace MParse.Lexer
             }
             TokenSpecifications = _tokenSpecifications.ToImmutableList();
         }
-        public ImmutableList<Token> Lex(string input, Func<int, int, ILocation> locator)
+        public Error<ImmutableList<Token>, TokenError> Lex(string input, Func<int, int, ILocation> locator)
         {
             List<Token> tokens = new List<Token>();
             string cur = input;
-            foreach (KeyValuePair<string, int> tokenSpecification in TokenSpecifications)
+            while (cur != "")
             {
-                Match m = Regex.Match(cur, @"\A" + tokenSpecification.Key);
-                if (m.Success)
+                foreach (KeyValuePair<string, int> tokenSpecification in TokenSpecifications)
                 {
-                    tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(m.Index, m.Length)));
+                    Match m = Regex.Match(cur, @"\A" + tokenSpecification.Key);
+                    if (m.Success)
+                    {
+                        tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(m.Index, m.Length)));
+                        cur = cur.Substring(m.Length - 1);
+                    }
                 }
             }
-            return tokens.ToImmutableList();
+            return Error<ImmutableList<Token>, TokenError>.Result(tokens.ToImmutableList());
         }
     }
 
