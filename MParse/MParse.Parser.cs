@@ -88,6 +88,21 @@ namespace MParse.Parser
 
         public static Tuple<Func<ParseState, ParseState>, string> Option(Func<ParseState, ParseState> ps, string description) => Tuple.Create(ps, description);
 
+        public static ParseState Loop(this ParseState prev, NonTerminal nt)
+        {
+            if (prev.State == ErrorState.Result)
+            {
+                ParseState parsed = prev;
+                while (true)
+                {
+                    ParseState _parsed = parsed.Parse(nt);
+                    if (_parsed.State == ErrorState.Throw) return prev;
+                    else parsed = prev;
+                }
+            }
+            else return prev;
+        }
+
         public static ParseState Rule(this ParseState prev, int rulenum) => prev.Bind(state => ParseState.Return(
                                                                                              Tuple.Create(state.Item1,
                                                                                                           state.Item2,
