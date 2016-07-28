@@ -310,7 +310,7 @@ namespace MParse.Parser
     #endregion
 
     #region IntermediateASTEntry
-    // IntermediateASTEntry = TerminalRoot int | TerminalLeaf Token | NonTerminal int | Option ImmutableList<int> | Epsilon
+    // IntermediateASTEntry = TerminalRoot int | TerminalLeaf Token | NonTerminal int | Option ImmutableList<int> | Loop int | Epsilon
     public class IntermediateASTEntry
     {
         private class TerminalRootImpl
@@ -345,6 +345,14 @@ namespace MParse.Parser
                 Value1 = value1;
             }
         }
+        private class LoopImpl
+        {
+            public int Value1 { get; set; } = default(int);
+            public LoopImpl(int value1)
+            {
+                Value1 = value1;
+            }
+        }
         private class EpsilonImpl
         {
             public EpsilonImpl()
@@ -353,15 +361,17 @@ namespace MParse.Parser
         }
         public IntermediateASTEntryState State { get; set; }
         private TerminalRootImpl TerminalRootField;
-        private TerminalRootImpl TerminalRootValue { get { return TerminalRootField; } set { TerminalRootField = value; TerminalLeafField = null; NonTerminalField = null; OptionField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalRoot; } }
+        private TerminalRootImpl TerminalRootValue { get { return TerminalRootField; } set { TerminalRootField = value; TerminalLeafField = null; NonTerminalField = null; OptionField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalRoot; } }
         private TerminalLeafImpl TerminalLeafField;
-        private TerminalLeafImpl TerminalLeafValue { get { return TerminalLeafField; } set { TerminalLeafField = value; TerminalRootField = null; NonTerminalField = null; OptionField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalLeaf; } }
+        private TerminalLeafImpl TerminalLeafValue { get { return TerminalLeafField; } set { TerminalLeafField = value; TerminalRootField = null; NonTerminalField = null; OptionField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalLeaf; } }
         private NonTerminalImpl NonTerminalField;
-        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalRootField = null; TerminalLeafField = null; OptionField = null; EpsilonField = null; State = IntermediateASTEntryState.NonTerminal; } }
+        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalRootField = null; TerminalLeafField = null; OptionField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.NonTerminal; } }
         private OptionImpl OptionField;
-        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; EpsilonField = null; State = IntermediateASTEntryState.Option; } }
+        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.Option; } }
+        private LoopImpl LoopField;
+        private LoopImpl LoopValue { get { return LoopField; } set { LoopField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; EpsilonField = null; State = IntermediateASTEntryState.Loop; } }
         private EpsilonImpl EpsilonField;
-        private EpsilonImpl EpsilonValue { get { return EpsilonField; } set { EpsilonField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; State = IntermediateASTEntryState.Epsilon; } }
+        private EpsilonImpl EpsilonValue { get { return EpsilonField; } set { EpsilonField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; LoopField = null; State = IntermediateASTEntryState.Epsilon; } }
         private IntermediateASTEntry() { }
         public static IntermediateASTEntry TerminalRoot(int value1)
         {
@@ -387,13 +397,19 @@ namespace MParse.Parser
             result.OptionValue = new OptionImpl(value1);
             return result;
         }
+        public static IntermediateASTEntry Loop(int value1)
+        {
+            IntermediateASTEntry result = new IntermediateASTEntry();
+            result.LoopValue = new LoopImpl(value1);
+            return result;
+        }
         public static IntermediateASTEntry Epsilon()
         {
             IntermediateASTEntry result = new IntermediateASTEntry();
             result.EpsilonValue = new EpsilonImpl();
             return result;
         }
-        public T1 Match<T1>(Func<int, T1> TerminalRoot, Func<Token, T1> TerminalLeaf, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option, Func<T1> Epsilon)
+        public T1 Match<T1>(Func<int, T1> TerminalRoot, Func<Token, T1> TerminalLeaf, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option, Func<int, T1> Loop, Func<T1> Epsilon)
         {
             switch (State)
             {
@@ -401,19 +417,21 @@ namespace MParse.Parser
                 case IntermediateASTEntryState.TerminalLeaf: return TerminalLeaf(TerminalLeafValue.Value1);
                 case IntermediateASTEntryState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
                 case IntermediateASTEntryState.Option: return Option(OptionValue.Value1);
+                case IntermediateASTEntryState.Loop: return Loop(LoopValue.Value1);
                 case IntermediateASTEntryState.Epsilon: return Epsilon();
             }
             return default(T1);
         }
         public override string ToString() => this.Match(TerminalRoot: t => "Root Terminal " + t,
-                                                                TerminalLeaf: l => "Leaf Terminal " + l.ToString(),
-                                                                NonTerminal: nt => "Nonterminal " + nt,
-                                                                Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())),
-                                                                Epsilon: () => "Epsilon");
+                                                        TerminalLeaf: l => "Leaf Terminal " + l.ToString(),
+                                                        NonTerminal: nt => "Nonterminal " + nt,
+                                                        Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())),
+                                                        Loop: l => "Loop " + l,
+                                                        Epsilon: () => "Epsilon");
     }
     public enum IntermediateASTEntryState
     {
-        TerminalRoot, TerminalLeaf, NonTerminal, Option, Epsilon
+        TerminalRoot, TerminalLeaf, NonTerminal, Option, Loop, Epsilon
     }
     #endregion
 
