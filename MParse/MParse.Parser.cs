@@ -220,7 +220,7 @@ namespace MParse.Parser
     }
 
     #region TermSpecification
-    // TermSpecification = Terminal int | NonTerminal int | Option ImmutableList<int>
+    // TermSpecification = Terminal int | NonTerminal int | Option ImmutableList<int> | Loop int
     public class TermSpecification
     {
         private class TerminalImpl
@@ -247,13 +247,23 @@ namespace MParse.Parser
                 Values = vs;
             }
         }
+        private class LoopImpl
+        {
+            public int Value1 { get; }
+            public LoopImpl(int value1)
+            {
+                Value1 = value1;
+            }
+        }
         public TermSpecificationState State { get; set; }
         private TerminalImpl TerminalField;
-        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; OptionField = null; State = TermSpecificationState.Terminal; } }
+        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; OptionField = null; LoopField = null; State = TermSpecificationState.Terminal; } }
         private NonTerminalImpl NonTerminalField;
-        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; OptionField = null; State = TermSpecificationState.NonTerminal; } }
+        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; OptionField = null; LoopField = null; State = TermSpecificationState.NonTerminal; } }
         private OptionImpl OptionField;
-        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalField = null; NonTerminalField = null; State = TermSpecificationState.Option; } }
+        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalField = null; NonTerminalField = null; LoopField = null; State = TermSpecificationState.Option; } }
+        private LoopImpl LoopField;
+        private LoopImpl LoopValue { get { return LoopField; } set { LoopField = value;  TerminalField = null; NonTerminalField = null; OptionField = null; State = TermSpecificationState.Loop; } }
         private TermSpecification() { }
         public static TermSpecification Terminal(int value1)
         {
@@ -273,6 +283,12 @@ namespace MParse.Parser
             result.OptionValue = new OptionImpl(values.ToImmutableList());
             return result;
         }
+        public static TermSpecification Loop(int value1)
+        {
+            TermSpecification result = new TermSpecification();
+            result.LoopValue = new LoopImpl(value1);
+            return result;
+        }
         public T1 Match<T1>(Func<int, T1> Terminal, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option)
         {
             switch (State)
@@ -289,7 +305,7 @@ namespace MParse.Parser
     }
     public enum TermSpecificationState
     {
-        Terminal, NonTerminal, Option
+        Terminal, NonTerminal, Option, Loop
     }
     #endregion
 
