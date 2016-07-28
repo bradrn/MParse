@@ -289,19 +289,21 @@ namespace MParse.Parser
             result.LoopValue = new LoopImpl(value1);
             return result;
         }
-        public T1 Match<T1>(Func<int, T1> Terminal, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option)
+        public T1 Match<T1>(Func<int, T1> Terminal, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option, Func<int, T1> Loop)
         {
             switch (State)
             {
                 case TermSpecificationState.Terminal: return Terminal(TerminalValue.Value1);
                 case TermSpecificationState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
                 case TermSpecificationState.Option: return Option(OptionValue.Values);
+                case TermSpecificationState.Loop: return Loop(LoopValue.Value1);
             }
             return default(T1);
         }
         public override string ToString() => this.Match(Terminal: t => "Terminal " + t,
                                                         NonTerminal: nt => "Nonterminal " + nt,
-                                                        Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())));
+                                                        Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())),
+                                                        Loop: l => "Loop " + l);
     }
     public enum TermSpecificationState
     {
