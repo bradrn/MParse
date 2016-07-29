@@ -8,11 +8,11 @@ using CSFunc.Types;
 using MParse.Lexer;
 
 using TokenList = System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>;
-using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Parser.ParseError>;
-using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Parser.ParseError>,
-                                CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<CSFunc.Types.Either<MParse.Lexer.Token, int>>>, MParse.Parser.ParseError>>;
+using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>;
+using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>,
+                                CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>>;
 using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
-using AST = MParse.Parser.Tree<CSFunc.Types.Either<MParse.Lexer.Token, int>>;
+using AST = MParse.Parser.Tree<MParse.Parser.Term>;
 
 namespace MParse.Parser
 {
@@ -20,7 +20,7 @@ namespace MParse.Parser
     {
         public static Error<AST, ParseError> DoParse(NonTerminal Start, TokenList input, ASTMap map)
         {
-            ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, ImmutableList<Either<Token, int>>.Empty)).Parse(Start);
+            ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, ImmutableList<Term>.Empty)).Parse(Start);
             parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
                                           : ParseState.Throw(new ParseError(ParseError.ExpectedValue.EOF(), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state)));
@@ -38,7 +38,7 @@ namespace MParse.Parser
                                            ? ParseState.Result(Tuple.Create(
                                                                state.Item1.Add(state.Item2[0]),
                                                                state.Item2.Skip(1).ToImmutableList(),
-                                                               state.Item3.Add(Either<Token, int>.Left(state.Item2[0]))))
+                                                               state.Item3.Add(Term.Terminal(state.Item2[0]))))
                                            : ParseState.Throw(new ParseError(ParseError.ExpectedValue.Token(token), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state))
                             select result);
                 }
@@ -106,7 +106,7 @@ namespace MParse.Parser
         public static ParseState Rule(this ParseState prev, int rulenum) => prev.Bind(state => ParseState.Return(
                                                                                              Tuple.Create(state.Item1,
                                                                                                           state.Item2,
-                                                                                                          state.Item3.Add(Either<Token, int>.Right(rulenum)))));
+                                                                                                          state.Item3.Add(Term.NonTerminal(rulenum)))));
 
         public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
 
@@ -123,16 +123,16 @@ namespace MParse.Parser
             return _map;
         }
 
-        public static AST ProcessAST(ImmutableList<Either<Token, int>> log, ASTMap map)
+        public static AST ProcessAST(ImmutableList<Term> log, ASTMap map)
         {
             Tree<IntermediateASTEntry> _ast = new Tree<IntermediateASTEntry>();
             List<int> position = new List<int>();
             bool first = true;
-            foreach (Either<Token, int> item in log.Reverse()) //.Where(item => item.State == EitherState.Right).Select(item => item.Match(Left: tok => 0, Right: nt => nt)))
+            foreach (Term item in log.Reverse()) //.Where(item => item.State == EitherState.Right).Select(item => item.Match(Left: tok => 0, Right: nt => nt)))
             {
                 if (first)
                 {
-                    item.Match(Right: nt =>
+                    item.Match(NonTerminal: nt =>
                     {
                         _ast.Value = IntermediateASTEntry.NonTerminal(nt);
                         _ast.Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
@@ -143,13 +143,13 @@ namespace MParse.Parser
                                         .ToList();
                         first = false;
                         return Unit.Nil;
-                    }, Left: tok => Unit.Nil);
+                    }, Terminal: tok => Unit.Nil, EndLoop: () => Unit.Nil);
                 }
                 else
                 {
                     item.Match
                     (                                    
-                        Right: nt =>                     
+                        NonTerminal: nt =>                     
                             _ast.Rightmost(ts => (ts.State == IntermediateASTEntryState.NonTerminal) || (ts.State == IntermediateASTEntryState.Option))
                             .Match                       
                             (                            
@@ -174,7 +174,7 @@ namespace MParse.Parser
                                 },
                                 Nothing: () => Unit.Nil
                             ),
-                        Left: tok =>
+                        Terminal: tok =>
                             _ast.Rightmost(ts => (ts.State == IntermediateASTEntryState.TerminalRoot))
                                 .Match
                                 (
@@ -198,19 +198,19 @@ namespace MParse.Parser
             AST ast = new AST();
             ast.Value = _ast.Value.Match
                         (
-                            TerminalLeaf: s => Either<Token, int>.Left(s),
+                            TerminalLeaf: s => Term.Left(s),
                             TerminalRoot: _ => { throw new Exception(); },
-                            NonTerminal: nt => Either<Token, int>.Right(nt),
+                            NonTerminal: nt => Term.Right(nt),
                             Option: os =>
                             {
                                 if (_ast.Children.Count == 1) return _ast.Children[0].Value.Match(TerminalRoot: _ => { throw new Exception(); },
                                                                                                   TerminalLeaf: _ => { throw new Exception(); },
-                                                                                                  NonTerminal: nt => Either<Token, int>.Right(nt),
+                                                                                                  NonTerminal: nt => Term.Right(nt),
                                                                                                   Option: _ => FromTree(_ast.Children[0]).Value,
                                                                                                   Epsilon: () => { throw new Exception(); });
                                 else throw new Exception();
                             },
-                            Epsilon: () => Either<Token, int>.Right(-1)
+                            Epsilon: () => Term.Right(-1)
                         );
             ast.Children = ast.Value.Match(
                 Left: _ => new List<AST>(),
@@ -218,6 +218,75 @@ namespace MParse.Parser
             return ast;
         }
     }
+
+    #region Term
+    // Term = Terminal Token | NonTerminal int | EndLoop
+    public class Term
+    {
+        private class TerminalImpl
+        {
+            public Token Value1 { get; set; } = default(Token);
+            public TerminalImpl(Token value1)
+            {
+                Value1 = value1;
+            }
+        }
+        private class NonTerminalImpl
+        {
+            public int Value1 { get; set; } = default(int);
+            public NonTerminalImpl(int value1)
+            {
+                Value1 = value1;
+            }
+        }
+        private class EndLoopImpl
+        {
+            public EndLoopImpl()
+            {
+            }
+        }
+        public TermState State { get; set; }
+        private TerminalImpl TerminalField;
+        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; EndLoopField = null; State = TermState.Terminal; } }
+        private NonTerminalImpl NonTerminalField;
+        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; EndLoopField = null; State = TermState.NonTerminal; } }
+        private EndLoopImpl EndLoopField;
+        private EndLoopImpl EndLoopValue { get { return EndLoopField; } set { EndLoopField = value; TerminalField = null; NonTerminalField = null; State = TermState.EndLoop; } }
+        private Term() { }
+        public static Term Terminal(Token value1)
+        {
+            Term result = new Term();
+            result.TerminalValue = new TerminalImpl(value1);
+            return result;
+        }
+        public static Term NonTerminal(int value1)
+        {
+            Term result = new Term();
+            result.NonTerminalValue = new NonTerminalImpl(value1);
+            return result;
+        }
+        public static Term EndLoop()
+        {
+            Term result = new Term();
+            result.EndLoopValue = new EndLoopImpl();
+            return result;
+        }
+        public T1 Match<T1>(Func<Token, T1> Terminal, Func<int, T1> NonTerminal, Func<T1> EndLoop)
+        {
+            switch (State)
+            {
+                case TermState.Terminal: return Terminal(TerminalValue.Value1);
+                case TermState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
+                case TermState.EndLoop: return EndLoop();
+            }
+            return default(T1);
+        }
+    }
+    public enum TermState
+    {
+        Terminal, NonTerminal, EndLoop
+    }
+    #endregion
 
     #region TermSpecification
     // TermSpecification = Terminal int | NonTerminal int | Option ImmutableList<int> | Loop int
@@ -570,8 +639,8 @@ namespace MParse.Parser
         }
         public ExpectedValue Expected { get; }
         public GotValue Got { get; }
-        public Tuple<TokenList, TokenList, ImmutableList<Either<Token, int>>> Previous { get; set; }
-        public ParseError(ExpectedValue expected, GotValue got, ILocation location, Tuple<TokenList, TokenList, ImmutableList<Either<Token, int>>> previous) : base(location)
+        public Tuple<TokenList, TokenList, ImmutableList<Term>> Previous { get; set; }
+        public ParseError(ExpectedValue expected, GotValue got, ILocation location, Tuple<TokenList, TokenList, ImmutableList<Term>> previous) : base(location)
         {
             Expected = expected;
             Got = got;
