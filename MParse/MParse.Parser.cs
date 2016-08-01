@@ -56,34 +56,31 @@ namespace MParse.Parser
             else return prev;
         }
 
-        public static Func<ParseState, ParseState> Option(params Tuple<Func<ParseState, ParseState>, string>[] options)
+        public static ParseState Option(this ParseState prev, params Tuple<Func<ParseState, ParseState>, string>[] options)
         {
-            return prev =>
+            if (prev.State == ErrorState.Result)
             {
-                if (prev.State == ErrorState.Result)
+                ParseState result;
+                Func<ParseState, ParseState>[] _options = options.Select(o => o.Item1).ToArray();
+                foreach (Func<ParseState, ParseState> option in _options)
                 {
-                    ParseState result;
-                    Func<ParseState, ParseState>[] _options = options.Select(o => o.Item1).ToArray();
-                    foreach (Func<ParseState, ParseState> option in _options)
+                    try
                     {
-                        try
-                        {
-                            result = prev.Parse(option);
-                        }
-                        catch (IndexOutOfRangeException)
-                        {
-                            continue;
-                        }
-                        if (result.State == ErrorState.Result) return result;
-                        else continue;
+                        result = prev.Parse(option);
                     }
-                    return prev.Bind(state =>
-                        state.Item2.Count == 0
-                        ? ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state))
-                        : ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.None(), state.Item2[0].Location, state)));
+                    catch (IndexOutOfRangeException)
+                    {
+                        continue;
+                    }
+                    if (result.State == ErrorState.Result) return result;
+                    else continue;
                 }
-                else return prev;
-            };
+                return prev.Bind(state =>
+                    state.Item2.Count == 0
+                    ? ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state))
+                    : ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.None(), state.Item2[0].Location, state)));
+            }
+            else return prev;
         }
 
         public static Tuple<Func<ParseState, ParseState>, string> Option(Func<ParseState, ParseState> ps, string description) => Tuple.Create(ps, description);

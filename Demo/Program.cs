@@ -34,9 +34,8 @@ namespace Demo
         {
             ASTMap map = new ASTMap
             {
-                //[Specifier(nameof(Start), 0)] = new List<T> { T.NonTerminal(1), T.Terminal(SEMICOLON), T.Option(0, -1) },
                 [Specifier(nameof(Start), 0)] = new List<T> { T.Loop(1) },
-                [Specifier(nameof(Statement), 1)] = new List<T> { T.Option(2, 3, 4) },
+                [Specifier(nameof(Statement), 1)] = new List<T> { T.Option(2, 3, 4), T.Terminal(SEMICOLON) },
                 [Specifier(nameof(Increment), 2)] = new List<T> { T.Terminal(ID), T.Terminal(INCREMENT) },
                 [Specifier(nameof(Decrement), 3)] = new List<T> { T.Terminal(ID), T.Terminal(DECREMENT) },
                 [Specifier(nameof(Assignment), 4)] = new List<T> { T.Option(5, 6) },
@@ -118,17 +117,17 @@ namespace Demo
 
         static ParseState Start(ParseState text) => text.Loop(Statement);
 
-        static NonTerminal Statement => Option(Option(Increment, "increment"), Option(Decrement, "decrement"), Option(Assignment, "assignment")).Rule(1);
+        static ParseState Statement(ParseState text) => text.Option(Option(Increment, "increment"), Option(Decrement, "decrement"), Option(Assignment, "assignment")).Parse(SEMICOLON).Rule(1);
 
         static ParseState Increment(ParseState text) => text.Parse(ID).Parse(INCREMENT).Rule(2);
 
         static ParseState Decrement(ParseState text) => text.Parse(ID).Parse(DECREMENT).Rule(3);
 
-        static NonTerminal Assignment => Option(Option(Assignment1, "assignment"), Option(Assignment2, "assignment")).Rule(4);
+        static ParseState Assignment(ParseState text) => text.Option(Option(Assignment1, "assignment"), Option(Assignment2, "assignment")).Rule(4);
         static ParseState Assignment1(ParseState text) => text.Parse(ID).Parse(EQUALS).Parse(ID).Rule(5);
         static ParseState Assignment2(ParseState text) => text.Parse(ID).Parse(EQUALS).Parse(Literal).Rule(6);
 
-        static NonTerminal Literal => Option(Option(IntLiteral, "integer literal"), Option(StringLiteral, "string literal")).Rule(7);
+        static ParseState Literal(ParseState text) => text.Option(Option(IntLiteral, "integer literal"), Option(StringLiteral, "string literal")).Rule(7);
         static ParseState IntLiteral(ParseState text) => text.Parse(INTEGER_LITERAL).Rule(8);
         static ParseState StringLiteral(ParseState text) => text.Parse(STRING_LITERAL).Rule(9);
     }
