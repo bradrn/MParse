@@ -115,7 +115,7 @@ namespace Demo
 
         }
 
-        static ParseState Start(ParseState text) => text.Loop(Statement);
+        static ParseState Start(ParseState text) => text.Loop(Statement).Rule(0);
 
         static ParseState Statement(ParseState text) => text.Option(Option(Increment, "increment"), Option(Decrement, "decrement"), Option(Assignment, "assignment")).Parse(SEMICOLON).Rule(1);
 

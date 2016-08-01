@@ -89,11 +89,13 @@ namespace MParse.Parser
         {
             if (prev.State == ErrorState.Result)
             {
-                ParseState parsed = prev;
+                ParseState parsed = prev.Map(state => Tuple.Create(state.Item1, state.Item2, state.Item3.Add(Term.EndLoop()))); // Add EndLoop at the start of loop
+                                                                                                                                // so that when the log is reversed,
+                                                                                                                                // it comes at the end of the loop
                 while (true)
                 {
                     ParseState _parsed = parsed.Parse(nt);
-                    if (_parsed.State == ErrorState.Throw) return parsed.Map(state => Tuple.Create(state.Item1, state.Item2, state.Item3.Add(Term.EndLoop())));
+                    if (_parsed.State == ErrorState.Throw) return parsed;
                     else parsed = _parsed;
                 }
             }
