@@ -96,8 +96,8 @@ namespace MParse.Parser
                 while (true)
                 {
                     ParseState _parsed = parsed.Parse(nt);
-                    if (_parsed.State == ErrorState.Throw) return prev;
-                    else parsed = prev;
+                    if (_parsed.State == ErrorState.Throw) return parsed.Map(state => Tuple.Create(state.Item1, state.Item2, state.Item3.Add(Term.EndLoop())));
+                    else parsed = _parsed;
                 }
             }
             else return prev;
@@ -139,49 +139,77 @@ namespace MParse.Parser
                                         .Select(t => new Tree<IntermediateASTEntry>(t.Match(
                                                         Terminal: i => IntermediateASTEntry.TerminalRoot(i),
                                                         NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
-                                                        Option: os => IntermediateASTEntry.Option(os))))
+                                                        Option: os => IntermediateASTEntry.Option(os),
+                                                        Loop: l => IntermediateASTEntry.Loop(l))))
                                         .ToList();
                         first = false;
                         return Unit.Nil;
-                    }, Terminal: tok => Unit.Nil, EndLoop: () => Unit.Nil);
+                    }, Terminal: tok => Unit.Nil, Loop: l => Unit.Nil, EndLoop: () => Unit.Nil);
                 }
                 else
                 {
                     item.Match
-                    (                                    
-                        NonTerminal: nt =>                     
-                            _ast.Rightmost(ts => (ts.State == IntermediateASTEntryState.NonTerminal) || (ts.State == IntermediateASTEntryState.Option))
-                            .Match                       
-                            (                            
-                                Just: rightmost =>       
+                    (
+                        NonTerminal: nt =>
+                            _ast.Rightmost(tree => (tree.IsLeaf && ((tree.Value.State == IntermediateASTEntryState.NonTerminal) ||
+                                                                    (tree.Value.State == IntermediateASTEntryState.Option)))
+                                                || (!tree.Children.Any(c => c.Value.State == IntermediateASTEntryState.EndLoop) && (tree.Value.State == IntermediateASTEntryState.Loop)))
+                            .Match
+                            (
+                                Just: rightmost =>
                                 {
-                                    if (nt == -1)
+                                    if (_ast.Navigate(rightmost).Value.State != IntermediateASTEntryState.Loop)
                                     {
-                                        _ast.Navigate(rightmost).Value = IntermediateASTEntry.Epsilon();
-                                        _ast.Navigate(rightmost).Children = new List<Tree<IntermediateASTEntry>>();
+                                        if (nt == -1)
+                                        {
+                                            _ast.Navigate(rightmost).Value = IntermediateASTEntry.Epsilon();
+                                            _ast.Navigate(rightmost).Children = new List<Tree<IntermediateASTEntry>>();
+                                        }
+                                        else
+                                        {
+                                            _ast.Navigate(rightmost).Value = IntermediateASTEntry.NonTerminal(nt);
+                                            _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                                                                                .Select(t => new Tree<IntermediateASTEntry>(t.Match(
+                                                                                                Terminal: i => IntermediateASTEntry.TerminalRoot(i),
+                                                                                                NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
+                                                                                                Option: os => IntermediateASTEntry.Option(os),
+                                                                                                Loop: l => IntermediateASTEntry.Loop(l))))
+                                                                                .ToList();
+                                        }
                                     }
                                     else
                                     {
-                                        _ast.Navigate(rightmost).Value = IntermediateASTEntry.NonTerminal(nt);
-                                        _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
-                                                                            .Select(t => new Tree<IntermediateASTEntry>(t.Match(
-                                                                                            Terminal: i => IntermediateASTEntry.TerminalRoot(i),
-                                                                                            NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
-                                                                                            Option: os => IntermediateASTEntry.Option(os))))
-                                                                            .ToList();
+                                        _ast.Navigate(rightmost).Value.Match(TerminalRoot: _ => Unit.Nil, TerminalLeaf: _ => Unit.Nil, NonTerminal: _ => Unit.Nil, Option: _ => Unit.Nil, EndLoop: () => Unit.Nil, Epsilon: () => Unit.Nil,
+                                            Loop: l =>
+                                            {
+                                                _ast.Navigate(rightmost).Children.Insert(0, new Tree<IntermediateASTEntry>(IntermediateASTEntry.NonTerminal(l)));
+                                                return Unit.Nil;
+                                            });
                                     }
                                     return Unit.Nil;
                                 },
                                 Nothing: () => Unit.Nil
                             ),
                         Terminal: tok =>
-                            _ast.Rightmost(ts => (ts.State == IntermediateASTEntryState.TerminalRoot))
+                            _ast.Rightmost(tree => tree.IsLeaf && (tree.Value.State == IntermediateASTEntryState.TerminalRoot))
                                 .Match
                                 (
                                     Just: rightmost =>
                                     {
                                         _ast.Navigate(rightmost).Value = IntermediateASTEntry.TerminalLeaf(tok);
                                         _ast.Navigate(rightmost).Children = new List<Tree<IntermediateASTEntry>>();
+                                        return Unit.Nil;
+                                    },
+                                    Nothing: () => Unit.Nil
+                                ),
+                        Loop: l => Unit.Nil,
+                        EndLoop: () =>
+                            _ast.Rightmost(tree => !tree.Children.Any(c => c.Value.State == IntermediateASTEntryState.EndLoop) && (tree.Value.State == IntermediateASTEntryState.Loop))
+                                .Match
+                                (
+                                    Just: rightmost =>
+                                    {
+                                        _ast.Navigate(rightmost).Children.Add(new Tree<IntermediateASTEntry>(IntermediateASTEntry.EndLoop(), new List<Tree<IntermediateASTEntry>>()));
                                         return Unit.Nil;
                                     },
                                     Nothing: () => Unit.Nil
@@ -198,29 +226,35 @@ namespace MParse.Parser
             AST ast = new AST();
             ast.Value = _ast.Value.Match
                         (
-                            TerminalLeaf: s => Term.Left(s),
+                            TerminalLeaf: s => Term.Terminal(s),
                             TerminalRoot: _ => { throw new Exception(); },
-                            NonTerminal: nt => Term.Right(nt),
+                            NonTerminal: nt => Term.NonTerminal(nt),
                             Option: os =>
                             {
                                 if (_ast.Children.Count == 1) return _ast.Children[0].Value.Match(TerminalRoot: _ => { throw new Exception(); },
                                                                                                   TerminalLeaf: _ => { throw new Exception(); },
-                                                                                                  NonTerminal: nt => Term.Right(nt),
+                                                                                                  NonTerminal: nt => Term.NonTerminal(nt),
                                                                                                   Option: _ => FromTree(_ast.Children[0]).Value,
+                                                                                                  Loop: _ => { throw new Exception(); },
+                                                                                                  EndLoop: () => { throw new Exception(); },
                                                                                                   Epsilon: () => { throw new Exception(); });
                                 else throw new Exception();
                             },
-                            Epsilon: () => Term.Right(-1)
+                            Loop: l => Term.Loop(l),
+                            EndLoop: () => Term.NonTerminal(-1),
+                            Epsilon: () => Term.NonTerminal(-1)
                         );
             ast.Children = ast.Value.Match(
-                Left: _ => new List<AST>(),
-                Right: nt => _ast.Children.Select(child => FromTree(child)).ToList());
+                Terminal: _ => new List<AST>(),
+                NonTerminal: nt => _ast.Children.Select(child => FromTree(child)).ToList(),
+                Loop: l => _ast.Children.Select(child => FromTree(child)).ToList(),
+                EndLoop: () => new List<AST>());
             return ast;
         }
     }
 
     #region Term
-    // Term = Terminal Token | NonTerminal int | EndLoop
+    // Term = Terminal Token | NonTerminal int | Loop int | EndLoop
     public class Term
     {
         private class TerminalImpl
@@ -239,6 +273,14 @@ namespace MParse.Parser
                 Value1 = value1;
             }
         }
+        private class LoopImpl
+        {
+            public int Value1 { get; set; } = default(int);
+            public LoopImpl(int value1)
+            {
+                Value1 = value1;
+            }
+        }
         private class EndLoopImpl
         {
             public EndLoopImpl()
@@ -247,11 +289,13 @@ namespace MParse.Parser
         }
         public TermState State { get; set; }
         private TerminalImpl TerminalField;
-        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; EndLoopField = null; State = TermState.Terminal; } }
+        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; LoopField = null; EndLoopField = null; State = TermState.Terminal; } }
         private NonTerminalImpl NonTerminalField;
-        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; EndLoopField = null; State = TermState.NonTerminal; } }
+        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; LoopField = null; EndLoopField = null; State = TermState.NonTerminal; } }
+        private LoopImpl LoopField;
+        private LoopImpl LoopValue { get { return LoopField; } set { LoopField = value; TerminalField = null; NonTerminalField = null; EndLoopField = null; State = TermState.Loop; } }
         private EndLoopImpl EndLoopField;
-        private EndLoopImpl EndLoopValue { get { return EndLoopField; } set { EndLoopField = value; TerminalField = null; NonTerminalField = null; State = TermState.EndLoop; } }
+        private EndLoopImpl EndLoopValue { get { return EndLoopField; } set { EndLoopField = value; TerminalField = null; NonTerminalField = null; LoopField = null; State = TermState.EndLoop; } }
         private Term() { }
         public static Term Terminal(Token value1)
         {
@@ -265,26 +309,37 @@ namespace MParse.Parser
             result.NonTerminalValue = new NonTerminalImpl(value1);
             return result;
         }
+        public static Term Loop(int value1)
+        {
+            Term result = new Term();
+            result.LoopValue = new LoopImpl(value1);
+            return result;
+        }
         public static Term EndLoop()
         {
             Term result = new Term();
             result.EndLoopValue = new EndLoopImpl();
             return result;
         }
-        public T1 Match<T1>(Func<Token, T1> Terminal, Func<int, T1> NonTerminal, Func<T1> EndLoop)
+        public T1 Match<T1>(Func<Token, T1> Terminal, Func<int, T1> NonTerminal, Func<int, T1> Loop, Func<T1> EndLoop)
         {
             switch (State)
             {
                 case TermState.Terminal: return Terminal(TerminalValue.Value1);
                 case TermState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
+                case TermState.Loop: return Loop(LoopValue.Value1);
                 case TermState.EndLoop: return EndLoop();
             }
             return default(T1);
         }
+        public override string ToString()
+        {
+            return this.Match(Terminal: tok => "Terminal " + tok.ToString(), NonTerminal: nt => "Nonterminal " + nt, Loop: l => "Loop " + l, EndLoop: () => "EndLoop");
+        }
     }
     public enum TermState
     {
-        Terminal, NonTerminal, EndLoop
+        Terminal, NonTerminal, Loop, EndLoop
     }
     #endregion
 
@@ -381,7 +436,7 @@ namespace MParse.Parser
     #endregion
 
     #region IntermediateASTEntry
-    // IntermediateASTEntry = TerminalRoot int | TerminalLeaf Token | NonTerminal int | Option ImmutableList<int> | Loop int | Epsilon
+    // IntermediateASTEntry = TerminalRoot int | TerminalLeaf Token | NonTerminal int | Option ImmutableList<int> | Loop int | EndLoop | Epsilon
     public class IntermediateASTEntry
     {
         private class TerminalRootImpl
@@ -424,6 +479,12 @@ namespace MParse.Parser
                 Value1 = value1;
             }
         }
+        private class EndLoopImpl
+        {
+            public EndLoopImpl()
+            {
+            }
+        }
         private class EpsilonImpl
         {
             public EpsilonImpl()
@@ -432,17 +493,19 @@ namespace MParse.Parser
         }
         public IntermediateASTEntryState State { get; set; }
         private TerminalRootImpl TerminalRootField;
-        private TerminalRootImpl TerminalRootValue { get { return TerminalRootField; } set { TerminalRootField = value; TerminalLeafField = null; NonTerminalField = null; OptionField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalRoot; } }
+        private TerminalRootImpl TerminalRootValue { get { return TerminalRootField; } set { TerminalRootField = value; TerminalLeafField = null; NonTerminalField = null; OptionField = null; LoopField = null; EndLoopField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalRoot; } }
         private TerminalLeafImpl TerminalLeafField;
-        private TerminalLeafImpl TerminalLeafValue { get { return TerminalLeafField; } set { TerminalLeafField = value; TerminalRootField = null; NonTerminalField = null; OptionField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalLeaf; } }
+        private TerminalLeafImpl TerminalLeafValue { get { return TerminalLeafField; } set { TerminalLeafField = value; TerminalRootField = null; NonTerminalField = null; OptionField = null; LoopField = null; EndLoopField = null; EpsilonField = null; State = IntermediateASTEntryState.TerminalLeaf; } }
         private NonTerminalImpl NonTerminalField;
-        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalRootField = null; TerminalLeafField = null; OptionField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.NonTerminal; } }
+        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalRootField = null; TerminalLeafField = null; OptionField = null; LoopField = null; EndLoopField = null; EpsilonField = null; State = IntermediateASTEntryState.NonTerminal; } }
         private OptionImpl OptionField;
-        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.Option; } }
+        private OptionImpl OptionValue { get { return OptionField; } set { OptionField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; LoopField = null; EndLoopField = null; EpsilonField = null; State = IntermediateASTEntryState.Option; } }
         private LoopImpl LoopField;
-        private LoopImpl LoopValue { get { return LoopField; } set { LoopField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; EpsilonField = null; State = IntermediateASTEntryState.Loop; } }
+        private LoopImpl LoopValue { get { return LoopField; } set { LoopField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; EndLoopField = null; EpsilonField = null; State = IntermediateASTEntryState.Loop; } }
+        private EndLoopImpl EndLoopField;
+        private EndLoopImpl EndLoopValue { get { return EndLoopField; } set { EndLoopField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; LoopField = null; EpsilonField = null; State = IntermediateASTEntryState.EndLoop; } }
         private EpsilonImpl EpsilonField;
-        private EpsilonImpl EpsilonValue { get { return EpsilonField; } set { EpsilonField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; LoopField = null; State = IntermediateASTEntryState.Epsilon; } }
+        private EpsilonImpl EpsilonValue { get { return EpsilonField; } set { EpsilonField = value; TerminalRootField = null; TerminalLeafField = null; NonTerminalField = null; OptionField = null; LoopField = null; EndLoopField = null; State = IntermediateASTEntryState.Epsilon; } }
         private IntermediateASTEntry() { }
         public static IntermediateASTEntry TerminalRoot(int value1)
         {
@@ -474,13 +537,19 @@ namespace MParse.Parser
             result.LoopValue = new LoopImpl(value1);
             return result;
         }
+        public static IntermediateASTEntry EndLoop()
+        {
+            IntermediateASTEntry result = new IntermediateASTEntry();
+            result.EndLoopValue = new EndLoopImpl();
+            return result;
+        }
         public static IntermediateASTEntry Epsilon()
         {
             IntermediateASTEntry result = new IntermediateASTEntry();
             result.EpsilonValue = new EpsilonImpl();
             return result;
         }
-        public T1 Match<T1>(Func<int, T1> TerminalRoot, Func<Token, T1> TerminalLeaf, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option, Func<int, T1> Loop, Func<T1> Epsilon)
+        public T1 Match<T1>(Func<int, T1> TerminalRoot, Func<Token, T1> TerminalLeaf, Func<int, T1> NonTerminal, Func<ImmutableList<int>, T1> Option, Func<int, T1> Loop, Func<T1> EndLoop, Func<T1> Epsilon)
         {
             switch (State)
             {
@@ -489,20 +558,22 @@ namespace MParse.Parser
                 case IntermediateASTEntryState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
                 case IntermediateASTEntryState.Option: return Option(OptionValue.Value1);
                 case IntermediateASTEntryState.Loop: return Loop(LoopValue.Value1);
+                case IntermediateASTEntryState.EndLoop: return EndLoop();
                 case IntermediateASTEntryState.Epsilon: return Epsilon();
             }
             return default(T1);
         }
         public override string ToString() => this.Match(TerminalRoot: t => "Root Terminal " + t,
-                                                        TerminalLeaf: l => "Leaf Terminal " + l.ToString(),
-                                                        NonTerminal: nt => "Nonterminal " + nt,
-                                                        Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())),
-                                                        Loop: l => "Loop " + l,
-                                                        Epsilon: () => "Epsilon");
+                                                                TerminalLeaf: l => "Leaf Terminal " + l.ToString(),
+                                                                NonTerminal: nt => "Nonterminal " + nt,
+                                                                Option: os => "Option " + string.Join(" ", os.Select(o => o.ToString())),
+                                                                Loop: l => "Loop " + l,
+                                                                EndLoop: () => "EndLoop",
+                                                                Epsilon: () => "Epsilon");
     }
     public enum IntermediateASTEntryState
     {
-        TerminalRoot, TerminalLeaf, NonTerminal, Option, Loop, Epsilon
+        TerminalRoot, TerminalLeaf, NonTerminal, Option, Loop, EndLoop, Epsilon
     }
     #endregion
 
@@ -523,28 +594,25 @@ namespace MParse.Parser
             Children = children;
         }
 
+        public Tree<T1> Map<T1>(Func<T, T1> f) => new Tree<T1>(f(this.Value), this.Children.Select(c => c.Map(f)).ToList());
+
+        public Tree<T1> MapTree<T1>(Func<Tree<T>, T1> f) => new Tree<T1>(f(this), this.Children.Select(c => c.MapTree(f)).ToList());
+
         public Tree<T> Navigate(ImmutableList<int> directions) => directions.Count == 0
                                                                   ? this
                                                                   : this.Children[directions[0]].Navigate(directions.Skip(1).ToImmutableList());
 
-        private static ImmutableList<NodeInfo> _lowermost(Tree<T> tree, ImmutableList<int> acc) => 
-            tree.IsLeaf
-            ? new List<NodeInfo> { new NodeInfo { Value = tree.Value, Directions = acc } }.ToImmutableList()
-            : tree.Children.SelectMany((child, i) => _lowermost(child, acc.Add(i))).ToImmutableList();
+        private Tree<Tuple<T, ImmutableList<int>>> Direct(ImmutableList<int> acc) =>
+            new Tree<Tuple<T, ImmutableList<int>>>(Tuple.Create(this.Value, acc), this.Children.Select((c, i) => c.Direct(acc.Add(i))).ToList());
 
-        public Maybe<ImmutableList<int>> Rightmost(Func<T, bool> predicate)
-        {
-            ImmutableList<NodeInfo> lowermost = _lowermost(this, ImmutableList<int>.Empty);
-            return lowermost.Aggregate(Maybe<ImmutableList<int>>.Nothing(), (acc, ni) => predicate(ni.Value)
-                                                                                         ? Maybe<ImmutableList<int>>.Just(ni.Directions)
-                                                                                         : acc);
-        }
+        private List<T> Flatten() => new List<T>{this.Value}.Concat(this.Children.SelectMany(c => c.Flatten())).ToList();
 
-        private struct NodeInfo
-        {
-            public T Value;
-            public ImmutableList<int> Directions;
-        }
+        public Maybe<ImmutableList<int>> Rightmost(Func<Tree<T>, bool> predicate) =>
+            this.MapTree(predicate)
+                .Direct(ImmutableList<int>.Empty)
+                .Flatten()
+                .Where(v => v.Item1)
+                .Aggregate(Maybe<ImmutableList<int>>.Nothing(), (acc, v) => Maybe<ImmutableList<int>>.Just(v.Item2));
     }
 
     public class ParseError : TokenError

@@ -34,7 +34,8 @@ namespace Demo
         {
             ASTMap map = new ASTMap
             {
-                [Specifier(nameof(Start), 0)] = new List<T> { T.NonTerminal(1), T.Terminal(SEMICOLON), T.Option(0, -1) },
+                //[Specifier(nameof(Start), 0)] = new List<T> { T.NonTerminal(1), T.Terminal(SEMICOLON), T.Option(0, -1) },
+                [Specifier(nameof(Start), 0)] = new List<T> { T.Loop(1) },
                 [Specifier(nameof(Statement), 1)] = new List<T> { T.Option(2, 3, 4) },
                 [Specifier(nameof(Increment), 2)] = new List<T> { T.Terminal(ID), T.Terminal(INCREMENT) },
                 [Specifier(nameof(Decrement), 3)] = new List<T> { T.Terminal(ID), T.Terminal(DECREMENT) },
@@ -115,21 +116,7 @@ namespace Demo
 
         }
 
-        static ParseState Start(ParseState text)
-        {
-            ParseState parsed = text.Parse(Statement).Parse(SEMICOLON);
-            ParseState parsed2 = parsed.Parse(Start);
-            if (parsed2.State == ErrorState.Throw)
-            {
-                if (!parsed2.Match(Result: _ => false, Throw: terr => terr.Expected.Match(EOF: () => false,
-                                                                                          Token: tok => tok == SEMICOLON,
-                                                                                          Option: o => false)))
-                {
-                    parsed2 = parsed.Parse(epsilon);
-                }
-            }
-            return parsed2.Rule(0);
-        }
+        static ParseState Start(ParseState text) => text.Loop(Statement);
 
         static NonTerminal Statement => Option(Option(Increment, "increment"), Option(Decrement, "decrement"), Option(Assignment, "assignment")).Rule(1);
 
