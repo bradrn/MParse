@@ -27,6 +27,8 @@ namespace MParse.Parser
             return parsed.Map(value => ProcessAST(value.Item3, map));
         }
 
+        public static ParseState AddToLog(this ParseState prev, Term t) => prev.Map(state => Tuple.Create(state.Item1, state.Item2, state.Item3.Add(t)));
+
         public static ParseState Parse(this ParseState prev, int token)
         {
             if (prev.State == ErrorState.Result)
@@ -89,9 +91,7 @@ namespace MParse.Parser
         {
             if (prev.State == ErrorState.Result)
             {
-                ParseState parsed = prev.Map(state => Tuple.Create(state.Item1, state.Item2, state.Item3.Add(Term.EndLoop()))); // Add EndLoop at the start of loop
-                                                                                                                                // so that when the log is reversed,
-                                                                                                                                // it comes at the end of the loop
+                ParseState parsed = prev.AddToLog(Term.EndLoop()); // Add EndLoop at the start of loop so that when the log is reversed, it comes at the end
                 while (true)
                 {
                     ParseState _parsed = parsed.Parse(nt);
