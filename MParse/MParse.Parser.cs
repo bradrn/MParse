@@ -102,10 +102,7 @@ namespace MParse.Parser
             else return prev;
         }
 
-        public static ParseState Rule(this ParseState prev, int rulenum) => prev.Bind(state => ParseState.Return(
-                                                                                             Tuple.Create(state.Item1,
-                                                                                                          state.Item2,
-                                                                                                          state.Item3.Add(Term.NonTerminal(rulenum)))));
+        public static ParseState Rule(this ParseState prev, int rulenum) => prev.AddToLog(Term.NonTerminal(rulenum));
 
         public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
 
