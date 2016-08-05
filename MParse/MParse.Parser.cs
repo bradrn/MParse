@@ -11,7 +11,7 @@ using TokenList = System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>
 using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>;
 using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>,
                                 CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>>;
-using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
+using ASTMap = System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
 using AST = MParse.Parser.Tree<MParse.Parser.Term>;
 
 namespace MParse.Parser
@@ -108,14 +108,12 @@ namespace MParse.Parser
 
         public static ParseState epsilon(ParseState text) => text.Rule(-1);
 
-        public static Tuple<string, int> Specifier(string s, int i) => Tuple.Create(s, i);
-
         public static Token Token(int type, string value, ILocation location) => new Token(type, value, location);
 
         public static ASTMap Initialise(this ASTMap map)
         {
             ASTMap _map = new ASTMap(map);
-            _map.Add(Specifier(nameof(epsilon), -1), new List<TermSpecification>() { });
+            _map.Add(-1, new List<TermSpecification>() { });
             return _map;
         }
 
@@ -131,7 +129,7 @@ namespace MParse.Parser
                     item.Match(NonTerminal: nt =>
                     {
                         _ast.Value = IntermediateASTEntry.NonTerminal(nt);
-                        _ast.Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                        _ast.Children = map[map.Keys.Where(s => s == nt).First()]
                                         .Select(t => new Tree<IntermediateASTEntry>(t.Match(
                                                         Terminal: i => IntermediateASTEntry.TerminalRoot(i),
                                                         NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
@@ -164,7 +162,7 @@ namespace MParse.Parser
                                         else
                                         {
                                             _ast.Navigate(rightmost).Value = IntermediateASTEntry.NonTerminal(nt);
-                                            _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s.Item2 == nt).First()]
+                                            _ast.Navigate(rightmost).Children = map[map.Keys.Where(s => s == nt).First()]
                                                                                 .Select(t => new Tree<IntermediateASTEntry>(t.Match(
                                                                                                 Terminal: i => IntermediateASTEntry.TerminalRoot(i),
                                                                                                 NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),

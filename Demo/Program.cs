@@ -11,7 +11,7 @@ using MParse.Lexer;
 using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>;
 using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>,
                                 CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>>;
-using ASTMap = System.Collections.Generic.Dictionary<System.Tuple<string, int>, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
+using ASTMap = System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
 using AST = MParse.Parser.Tree<MParse.Parser.Term>;
 using T = MParse.Parser.TermSpecification;
 using TSpec = System.Collections.Generic.KeyValuePair<string, int>;
@@ -34,16 +34,16 @@ namespace Demo
         {
             ASTMap map = new ASTMap
             {
-                [Specifier(nameof(Start), 0)] = new List<T> { T.Loop(1) },
-                [Specifier(nameof(Statement), 1)] = new List<T> { T.Option(2, 3, 4), T.Terminal(SEMICOLON) },
-                [Specifier(nameof(Increment), 2)] = new List<T> { T.Terminal(ID), T.Terminal(INCREMENT) },
-                [Specifier(nameof(Decrement), 3)] = new List<T> { T.Terminal(ID), T.Terminal(DECREMENT) },
-                [Specifier(nameof(Assignment), 4)] = new List<T> { T.Option(5, 6) },
-                [Specifier(nameof(Assignment1), 5)] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.Terminal(ID) },
-                [Specifier(nameof(Assignment1), 6)] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.NonTerminal(7) },
-                [Specifier(nameof(Literal), 7)] = new List<T> { T.Option(8, 9) },
-                [Specifier(nameof(IntLiteral), 8)] = new List<T> { T.Terminal(INTEGER_LITERAL) },
-                [Specifier(nameof(StringLiteral), 9)] = new List<T> { T.Terminal(STRING_LITERAL) }
+                [0] = new List<T> { T.Loop(1) },
+                [1] = new List<T> { T.Option(2, 3, 4), T.Terminal(SEMICOLON) },
+                [2] = new List<T> { T.Terminal(ID), T.Terminal(INCREMENT) },
+                [3] = new List<T> { T.Terminal(ID), T.Terminal(DECREMENT) },
+                [4] = new List<T> { T.Option(5, 6) },
+                [5] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.Terminal(ID) },
+                [6] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.NonTerminal(7) },
+                [7] = new List<T> { T.Option(8, 9) },
+                [8] = new List<T> { T.Terminal(INTEGER_LITERAL) },
+                [9] = new List<T> { T.Terminal(STRING_LITERAL) }
             }.Initialise();
             Lexer l = new Lexer(new TSpec(@";", SEMICOLON),
                     new TSpec(@"\+\+", INCREMENT),
@@ -115,7 +115,29 @@ namespace Demo
 
         }
 
-        static ParseState Start(ParseState text) => text.Loop(Statement).Rule(0);
+        static ParseState Start(ParseState text)
+        {
+            if (text.State == ErrorState.Result)
+            {
+                ParseState parsed = text.AddToLog(Term.EndLoop()); // Add EndLoop at the start of loop so that when the log is reversed, it comes at the end
+                while (true)
+                {
+                    ParseState _parsed = parsed.Parse(Statement);
+                    if (_parsed.State == ErrorState.Throw)
+                    {
+                        if (_parsed.Match(Result: state => false, Throw: state => state.Expected.Match(EOF: () => false,
+                                                                                                       Token: tok => tok == SEMICOLON,
+                                                                                                       Option: os => false)))
+                        {
+                            return _parsed;
+                        }
+                        else return parsed.Rule(0);
+                    }
+                    else parsed = _parsed;
+                }
+            }
+            else return text.Rule(0);
+        }
 
         static ParseState Statement(ParseState text) => text.Option(Option(Increment, "increment"), Option(Decrement, "decrement"), Option(Assignment, "assignment")).Parse(SEMICOLON).Rule(1);
 
