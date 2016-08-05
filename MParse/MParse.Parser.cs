@@ -27,7 +27,7 @@ namespace MParse.Parser
             return parsed.Map(value => ProcessAST(value.Item3, map));
         }
 
-        public static ParseState AddToLog(this ParseState prev, Term t) => prev.Map(state => Tuple.Create(state.Item1, state.Item2, state.Item3.Add(t)));
+        // Parsing methods
 
         public static ParseState Parse(this ParseState prev, int token)
         {
@@ -106,16 +106,7 @@ namespace MParse.Parser
 
         public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
 
-        public static ParseState epsilon(ParseState text) => text.Rule(-1);
-
-        public static Token Token(int type, string value, ILocation location) => new Token(type, value, location);
-
-        public static ASTMap Initialise(this ASTMap map)
-        {
-            ASTMap _map = new ASTMap(map);
-            _map.Add(-1, new List<TermSpecification>() { });
-            return _map;
-        }
+        // Methods to convert from lists of Terms to trees
 
         public static AST ProcessAST(ImmutableList<Term> log, ASTMap map)
         {
@@ -244,6 +235,21 @@ namespace MParse.Parser
                 Loop: l => _ast.Children.Select(child => FromTree(child)).ToList(),
                 EndLoop: () => new List<AST>());
             return ast;
+        }
+
+        // Utility methods
+
+        public static ParseState epsilon(ParseState text) => text.Rule(-1);
+
+        public static Token Token(int type, string value, ILocation location) => new Token(type, value, location);
+
+        public static ParseState AddToLog(this ParseState prev, Term t) => prev.Map(state => Tuple.Create(state.Item1, state.Item2, state.Item3.Add(t)));
+
+        public static ASTMap Initialise(this ASTMap map)
+        {
+            ASTMap _map = new ASTMap(map);
+            _map.Add(-1, new List<TermSpecification>() { });
+            return _map;
         }
     }
 
