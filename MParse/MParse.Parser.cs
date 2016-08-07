@@ -245,8 +245,8 @@ namespace MParse.Parser
 
         public static ParseState AddToLog(this ParseState prev, Term t) => prev.Map(state => Tuple.Create(state.Item1, state.Item2, state.Item3.Add(t)));
 
-        public static Maybe<Token[]> Lookahead(this ParseState p, int n) => p.Match(Result: state => (state.Item2.Count > n) ? Maybe<Token[]>.Nothing()
-                                                                                                                             : Maybe<Token[]>.Just(state.Item2.Take(n).ToArray()),
+        public static Maybe<Token[]> Lookahead(this ParseState p, int n) => p.Match(Result: state => (state.Item2.Count < n) ? Maybe<Token[]>.Nothing()
+                                                                                                                       : Maybe<Token[]>.Just(state.Item2.Take(n).ToArray()),
                                                                                     Throw: terr => Maybe<Token[]>.Nothing());
 
         public static ASTMap Initialise(this ASTMap map)
