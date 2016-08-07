@@ -617,6 +617,25 @@ namespace MParse.Parser
                 .Flatten()
                 .Where(v => v.Item1)
                 .Aggregate(Maybe<ImmutableList<int>>.Nothing(), (acc, v) => Maybe<ImmutableList<int>>.Just(v.Item2));
+
+        public void PrintPretty(string indent = "", bool last = true) // With thanks to Will from http://stackoverflow.com/questions/1649027/how-do-i-print-out-a-tree-structure
+        {
+            Console.Write(indent);
+            if (last)
+            {
+                Console.Write(@"└─");
+                indent += "  ";
+            }
+            else
+            {
+                Console.Write("├─");
+                indent += "│ ";
+            }
+            Console.WriteLine(this.Value.ToString());
+            for (int i = 0; i < this.Children.Count; i++)
+                this.Children[i].PrintPretty(indent, i == this.Children.Count - 1);
+
+        }
     }
 
     public class ParseError : TokenError

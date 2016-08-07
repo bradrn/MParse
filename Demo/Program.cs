@@ -64,55 +64,28 @@ namespace Demo
                     Throw: terr => { Console.WriteLine(terr.ToString()); return Unit.Nil; },
                     Result: ts =>
                     {
-                        PrintPretty(DoParse(Start, ts, map).Match
-                                   (
-                                       Result: ast => ast,
-                                       Throw: terr =>
-                                       {
-                                           Console.WriteLine(terr.ToString(new Dictionary<int, string>
-                                           {
-                                               [SEMICOLON] = "semicolon",
-                                               [INCREMENT] = "increment (++)",
-                                               [DECREMENT] = "decrement (--)",
-                                               [EQUALS] = "assignment operator (=)",
-                                               [ID] = "identifier",
-                                               [INTEGER_LITERAL] = "integer",
-                                               [STRING_LITERAL] = "string"
-                                           }));
-                                           return new AST(Term.Terminal(Token(-1, "Error", new Line(-1))));
-                                       }
-                                   ), "", true);
+                        DoParse(Start, ts, map).Match
+                        (
+                            Result: ast => ast,
+                            Throw: terr =>
+                            {
+                                Console.WriteLine(terr.ToString(new Dictionary<int, string>
+                                {
+                                    [SEMICOLON] = "semicolon",
+                                    [INCREMENT] = "increment (++)",
+                                    [DECREMENT] = "decrement (--)",
+                                    [EQUALS] = "assignment operator (=)",
+                                    [ID] = "identifier",
+                                    [INTEGER_LITERAL] = "integer",
+                                    [STRING_LITERAL] = "string"
+                                }));
+                                return new AST(Term.Terminal(Token(-1, "Error", new Line(-1))));
+                            }
+                        ).PrintPretty();
                         return Unit.Nil;
                     }
                 );
             }
-        }
-
-        public static void ClearLine() // Thanks to SomeNameNoFake from http://stackoverflow.com/questions/8946808/can-console-clear-be-used-to-only-clear-a-line-instead-of-whole-console
-        {
-            Console.SetCursorPosition(0, Console.CursorTop);
-            Console.Write(new string(' ', Console.WindowWidth));
-            Console.SetCursorPosition(0, Console.CursorTop - (Console.WindowWidth >= Console.BufferWidth ? 1 : 0));
-        }
-
-        public static void PrintPretty<T>(this Tree<T> t, string indent, bool last) // With thanks to Will from http://stackoverflow.com/questions/1649027/how-do-i-print-out-a-tree-structure
-        {
-            ClearLine();
-            Console.Write(indent);
-            if (last)
-            {
-                Console.Write(@"└─");
-                indent += "  ";
-            }
-            else
-            {
-                Console.Write("├─");
-                indent += "│ ";
-            }
-            Console.WriteLine(t.Value.ToString());
-            for (int i = 0; i < t.Children.Count; i++)
-                t.Children[i].PrintPretty(indent, i == t.Children.Count - 1);
-
         }
 
         static ParseState Start(ParseState text)
