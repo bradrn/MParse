@@ -113,7 +113,7 @@ namespace MParse.Parser
             Tree<IntermediateASTEntry> _ast = new Tree<IntermediateASTEntry>();
             List<int> position = new List<int>();
             bool first = true;
-            foreach (Term item in log.Reverse()) //.Where(item => item.State == EitherState.Right).Select(item => item.Match(Left: tok => 0, Right: nt => nt)))
+            foreach (Term item in log.Reverse())
             {
                 if (first)
                 {
