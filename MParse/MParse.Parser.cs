@@ -18,13 +18,13 @@ namespace MParse.Parser
 {
     public static class Parser
     {
-        public static Error<AST, ParseError> DoParse(NonTerminal Start, TokenList input, ASTMap map)
+        public static Error<AST, ParseError> DoParse(NonTerminal Start, TokenList input, ASTMap map, bool showIntermediateResults = false)
         {
             ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, ImmutableList<Term>.Empty)).Parse(Start);
             parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
                                           : ParseState.Throw(new ParseError(ParseError.ExpectedValue.EOF(), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state)));
-            return parsed.Map(value => ProcessAST(value.Item3, map));
+            return parsed.Map(value => ProcessAST(value.Item3, map, showIntermediateResults));
         }
 
         // Parsing methods
@@ -108,13 +108,15 @@ namespace MParse.Parser
 
         // Methods to convert from lists of Terms to trees
 
-        public static AST ProcessAST(ImmutableList<Term> log, ASTMap map)
+        public static AST ProcessAST(ImmutableList<Term> log, ASTMap map, bool showIntermediateResults = false)
         {
             Tree<IntermediateASTEntry> _ast = new Tree<IntermediateASTEntry>();
             List<int> position = new List<int>();
             bool first = true;
+            int line = Console.CursorTop;
             foreach (Term item in log.Reverse())
             {
+                if (showIntermediateResults) Console.CursorTop = line;
                 if (first)
                 {
                     item.Match(NonTerminal: nt =>
@@ -201,6 +203,7 @@ namespace MParse.Parser
                                 )
                     );
                 }
+                if (showIntermediateResults) { _ast.PrintPretty(); }
             }
 
             return FromTree(_ast);
@@ -618,8 +621,16 @@ namespace MParse.Parser
                 .Where(v => v.Item1)
                 .Aggregate(Maybe<ImmutableList<int>>.Nothing(), (acc, v) => Maybe<ImmutableList<int>>.Just(v.Item2));
 
+        private static void ClearLine() // With thanks to SomeNameNoFake from http://stackoverflow.com/questions/8946808/can-console-clear-be-used-to-only-clear-a-line-instead-of-whole-console
+        {
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write(new string(' ', Console.WindowWidth));
+            Console.SetCursorPosition(0, Console.CursorTop - (Console.WindowWidth >= Console.BufferWidth ? 1 : 0));
+        }
+
         public void PrintPretty(string indent = "", bool last = true) // With thanks to Will from http://stackoverflow.com/questions/1649027/how-do-i-print-out-a-tree-structure
         {
+            ClearLine(); // In case there is already something on this line
             Console.Write(indent);
             if (last)
             {
