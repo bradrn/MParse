@@ -203,7 +203,7 @@ namespace MParse.Parser
                                 )
                     );
                 }
-                if (showIntermediateResults) { _ast.PrintPretty(); }
+                if (showIntermediateResults) { _ast.PrintPretty(); Console.ReadLine(); }
             }
 
             return FromTree(_ast);
