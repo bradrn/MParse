@@ -170,6 +170,13 @@ namespace MParse.Parser
                                             Loop: l =>
                                             {
                                                 _ast.Navigate(rightmost).Children.Insert(0, new Tree<IntermediateASTEntry>(IntermediateASTEntry.NonTerminal(l)));
+                                                _ast.Navigate(rightmost).Children[0].Children = map[map.Keys.Where(s => s == nt).First()]
+                                                                                                .Select(t => new Tree<IntermediateASTEntry>(t.Match(
+                                                                                                                Terminal: i => IntermediateASTEntry.TerminalRoot(i),
+                                                                                                                NonTerminal: _nt => IntermediateASTEntry.NonTerminal(_nt),
+                                                                                                                Option: os => IntermediateASTEntry.Option(os),
+                                                                                                                Loop: l2 => IntermediateASTEntry.Loop(l2))))
+                                                                                                .ToList();
                                                 return Unit.Nil;
                                             });
                                     }
