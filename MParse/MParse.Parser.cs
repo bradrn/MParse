@@ -259,6 +259,22 @@ namespace MParse.Parser
                                                                                                                        : Maybe<Token[]>.Just(state.Item2.Take(n).ToArray()),
                                                                                     Throw: terr => Maybe<Token[]>.Nothing());
 
+        public static NonTerminal ParseToks(int rulenum, params int[] toks) => (ParseState prev) =>
+        {
+            if (prev.State == ErrorState.Result)
+            {
+                ParseState parsed = prev;
+                foreach (int tok in toks)
+                {
+                    ParseState _parsed = parsed.Parse(tok);
+                    if (_parsed.State == ErrorState.Throw) return parsed;
+                    else parsed = _parsed;
+                }
+                return prev.Rule(rulenum);
+            }
+            else return prev;
+        };
+
         public static ASTMap Initialise(this ASTMap map)
         {
             ASTMap _map = new ASTMap(map);
