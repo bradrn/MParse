@@ -266,9 +266,7 @@ namespace MParse.Parser
                 ParseState parsed = prev;
                 foreach (int tok in toks)
                 {
-                    ParseState _parsed = parsed.Parse(tok);
-                    if (_parsed.State == ErrorState.Throw) return parsed;
-                    else parsed = _parsed;
+                    parsed = parsed.Parse(tok);
                 }
                 return prev.Rule(rulenum);
             }
