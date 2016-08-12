@@ -268,7 +268,7 @@ namespace MParse.Parser
                 {
                     parsed = parsed.Parse(tok);
                 }
-                return prev.Rule(rulenum);
+                return parsed.Rule(rulenum);
             }
             else return prev;
         };
