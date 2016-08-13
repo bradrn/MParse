@@ -93,7 +93,7 @@ namespace MParse.Parser
         {
             if (prev.State == ErrorState.Result)
             {
-                ParseState parsed = prev.AddToLog(Term.EndLoop()); // Add EndLoop at the start of loop so that when the log is reversed, it comes at the end
+                ParseState parsed = prev;
                 while (true)
                 {
                     ParseState _parsed = parsed.Parse(nt);
