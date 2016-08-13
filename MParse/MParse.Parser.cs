@@ -616,8 +616,8 @@ namespace MParse.Parser
         }
         public ExpectedValue Expected { get; }
         public GotValue Got { get; }
-        public Tuple<TokenList, TokenList, ImmutableList<Term>> Previous { get; set; }
-        public ParseError(ExpectedValue expected, GotValue got, ILocation location, Tuple<TokenList, TokenList, ImmutableList<Term>> previous) : base(location)
+        public Tuple<TokenList, TokenList, AST> Previous { get; set; }
+        public ParseError(ExpectedValue expected, GotValue got, ILocation location, Tuple<TokenList, TokenList, AST> previous) : base(location)
         {
             Expected = expected;
             Got = got;
