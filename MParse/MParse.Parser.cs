@@ -11,7 +11,6 @@ using TokenList = System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>
 using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>;
 using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>,
                                 CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>>;
-using ASTMap = System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
 using AST = MParse.Parser.Tree<MParse.Parser.Term>;
 
 namespace MParse.Parser
