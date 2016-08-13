@@ -104,8 +104,6 @@ namespace MParse.Parser
 
         public static ParseState Rule(this ParseState prev, int rulenum) => prev.AddToLog(Term.NonTerminal(rulenum));
 
-        public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
-
         // Methods to convert from lists of Terms to trees
 
         public static AST ProcessAST(ImmutableList<Term> log, ASTMap map, bool showIntermediateResults = false)
