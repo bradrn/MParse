@@ -271,13 +271,6 @@ namespace MParse.Parser
             }
             else return prev;
         };
-
-        public static ASTMap Initialise(this ASTMap map)
-        {
-            ASTMap _map = new ASTMap(map);
-            _map.Add(-1, new List<TermSpecification>() { });
-            return _map;
-        }
     }
 
     #region Term
