@@ -39,7 +39,7 @@ namespace MParse.Parser
                                            ? ParseState.Result(Tuple.Create(
                                                                state.Item1.Add(state.Item2[0]),
                                                                state.Item2.Skip(1).ToImmutableList(),
-                                                               state.Item3.Add(Term.Terminal(state.Item2[0]))))
+                                                               new Tree<Term>(state.Item3.Value, state.Item3.Children.Add(new Tree<Term>(Term.Terminal(state.Item2[0]))))))
                                            : ParseState.Throw(new ParseError(ParseError.ExpectedValue.Token(token), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state))
                             select result);
                 }
