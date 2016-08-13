@@ -17,13 +17,13 @@ namespace MParse.Parser
 {
     public static class Parser
     {
-        public static Error<AST, ParseError> DoParse(NonTerminal Start, TokenList input, ASTMap map, bool showIntermediateResults = false)
+        public static Error<AST, ParseError> DoParse(NonTerminal Start, TokenList input, bool showIntermediateResults = false)
         {
-            ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, ImmutableList<Term>.Empty)).Parse(Start);
+            ParseState parsed = ParseState.Return(Tuple.Create(TokenList.Empty, input, new AST())).Parse(Start);
             parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
                                           : ParseState.Throw(new ParseError(ParseError.ExpectedValue.EOF(), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state)));
-            return parsed.Map(value => ProcessAST(value.Item3, map, showIntermediateResults));
+            return parsed.Map(value => value.Item3);
         }
 
         // Parsing methods
