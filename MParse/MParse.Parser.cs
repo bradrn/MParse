@@ -458,33 +458,33 @@ namespace MParse.Parser
 
     public class Tree<T>
     {
-        public T Value;
         private Term term;
         private List<AST> children;
 
-        public List<Tree<T>> Children { get; set; }
+        public T Value { get; }
+        public ImmutableList<Tree<T>> Children { get; }
         public bool IsLeaf => Children.Count == 0;
 
         public Tree() : this(default(T)) { }
 
-        public Tree(T t) : this(t, new List<Tree<T>>()) { }
+        public Tree(T t) : this(t, ImmutableList<Tree<T>>.Empty) { }
 
-        public Tree(T t, List<Tree<T>> children)
+        public Tree(T t, ImmutableList<Tree<T>> children)
         {
             Value = t;
             Children = children;
         }
 
-        public Tree<T1> Map<T1>(Func<T, T1> f) => new Tree<T1>(f(this.Value), this.Children.Select(c => c.Map(f)).ToList());
+        public Tree<T1> Map<T1>(Func<T, T1> f) => new Tree<T1>(f(this.Value), this.Children.Select(c => c.Map(f)).ToImmutableList());
 
-        public Tree<T1> MapTree<T1>(Func<Tree<T>, T1> f) => new Tree<T1>(f(this), this.Children.Select(c => c.MapTree(f)).ToList());
+        public Tree<T1> MapTree<T1>(Func<Tree<T>, T1> f) => new Tree<T1>(f(this), this.Children.Select(c => c.MapTree(f)).ToImmutableList());
 
         public Tree<T> Navigate(ImmutableList<int> directions) => directions.Count == 0
                                                                   ? this
                                                                   : this.Children[directions[0]].Navigate(directions.Skip(1).ToImmutableList());
 
         private Tree<Tuple<T, ImmutableList<int>>> Direct(ImmutableList<int> acc) =>
-            new Tree<Tuple<T, ImmutableList<int>>>(Tuple.Create(this.Value, acc), this.Children.Select((c, i) => c.Direct(acc.Add(i))).ToList());
+            new Tree<Tuple<T, ImmutableList<int>>>(Tuple.Create(this.Value, acc), this.Children.Select((c, i) => c.Direct(acc.Add(i))).ToImmutableList());
 
         private List<T> Flatten() => new List<T>{this.Value}.Concat(this.Children.SelectMany(c => c.Flatten())).ToList();
 
