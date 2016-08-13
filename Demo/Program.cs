@@ -31,19 +31,6 @@ namespace Demo
 
         static void Main(string[] args)
         {
-            ASTMap map = new ASTMap
-            {
-                [0] = new List<T> { T.Loop(1) },
-                [1] = new List<T> { T.Option(2, 3, 4), T.Terminal(SEMICOLON) },
-                [2] = new List<T> { T.Terminal(ID), T.Terminal(INCREMENT) },
-                [3] = new List<T> { T.Terminal(ID), T.Terminal(DECREMENT) },
-                [4] = new List<T> { T.Option(5, 6) },
-                [5] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.Terminal(ID) },
-                [6] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.NonTerminal(7) },
-                [7] = new List<T> { T.Option(8, 9) },
-                [8] = new List<T> { T.Terminal(INTEGER_LITERAL) },
-                [9] = new List<T> { T.Terminal(STRING_LITERAL) }
-            }.Initialise();
             Lexer l = new Lexer(new TSpec(@";", SEMICOLON),
                     new TSpec(@"\+\+", INCREMENT),
                     new TSpec(@"--", DECREMENT),
