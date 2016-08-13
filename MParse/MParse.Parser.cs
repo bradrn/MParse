@@ -101,7 +101,7 @@ namespace MParse.Parser
             else return prev;
         }
 
-        public static ParseState Rule(this ParseState prev, int rulenum) => prev.AddToLog(Term.NonTerminal(rulenum));
+        public static ParseState Rule(this ParseState prev, int rulenum) => prev.Map(state => Tuple.Create(state.Item1, state.Item2, new AST(Term.NonTerminal(rulenum), state.Item3.Children)));
 
         public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
 
@@ -459,6 +459,8 @@ namespace MParse.Parser
     public class Tree<T>
     {
         public T Value;
+        private Term term;
+        private List<AST> children;
 
         public List<Tree<T>> Children { get; set; }
         public bool IsLeaf => Children.Count == 0;
