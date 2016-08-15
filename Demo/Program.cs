@@ -50,7 +50,7 @@ namespace Demo
                     Throw: terr => { Console.WriteLine(terr.ToString()); return Unit.Nil; },
                     Result: ts =>
                     {
-                        DoParse(Start, ts, map).Match
+                        DoParse(Start, ts).Match
                         (
                             Result: ast => ast,
                             Throw: terr =>
@@ -78,7 +78,7 @@ namespace Demo
         {
             if (text.State == ErrorState.Result)
             {
-                ParseState parsed = text.AddToLog(Term.EndLoop()); // Add EndLoop at the start of loop so that when the log is reversed, it comes at the end
+                ParseState parsed = text;
                 while (true)
                 {
                     ParseState _parsed = parsed.Parse(Statement);
