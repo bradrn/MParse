@@ -459,9 +459,6 @@ namespace MParse.Parser
 
     public class Tree<T>
     {
-        private Term term;
-        private List<AST> children;
-
         public T Value { get; }
         public ImmutableList<Tree<T>> Children { get; }
         public bool IsLeaf => Children.Count == 0;
