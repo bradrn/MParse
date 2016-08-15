@@ -19,7 +19,7 @@ namespace MParse.Parser
     {
         public static Error<AST, ParseError> DoParse(NonTerminal Start, TokenList input, bool showIntermediateResults = false)
         {
-            ParseState parsed = Start(ParseState.Return(Tuple.Create(TokenList.Empty, input, new AST())).Parse(Start).Parse(Start));
+            ParseState parsed = Start(ParseState.Return(Tuple.Create(TokenList.Empty, input, new AST())));
             parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
                                           : ParseState.Throw(new ParseError(ParseError.ExpectedValue.EOF(), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state)));
