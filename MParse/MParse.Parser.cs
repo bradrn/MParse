@@ -53,10 +53,11 @@ namespace MParse.Parser
 
         public static ParseState Parse(this ParseState prev, Func<ParseState, ParseState> group)
         {
-            if (prev.State == ErrorState.Result) return prev.Bind(oldstate => group(prev).Match(Result: state => ParseState.Result(Tuple.Create(state.Item1,
-                                                                                                                                                state.Item2,
-                                                                                                                                                new AST(oldstate.Item3.Value, oldstate.Item3.Children.Add(state.Item3)))),
-                                                                                                Throw: terr => ParseState.Throw(terr)));
+            if (prev.State == ErrorState.Result) return prev.Bind(oldstate => group(ParseState.Result(Tuple.Create(oldstate.Item1, oldstate.Item2, new AST())))
+                                                                              .Match(Result: state => ParseState.Result(Tuple.Create(state.Item1,
+                                                                                                                                     state.Item2,
+                                                                                                                                     new AST(oldstate.Item3.Value, oldstate.Item3.Children.Add(state.Item3)))),
+                                                                                     Throw: terr => ParseState.Throw(terr)));
             else return prev;
         }
 
