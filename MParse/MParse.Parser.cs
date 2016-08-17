@@ -107,8 +107,6 @@ namespace MParse.Parser
 
         public static ParseState Rule(this ParseState prev, int rulenum) => prev.Map(state => Tuple.Create(state.Item1, state.Item2, new AST(Term.NonTerminal(rulenum), state.Item3.Children)));
 
-        public static NonTerminal Rule(this NonTerminal nt, int rulenum) => prev => prev.Parse(nt).Rule(rulenum);
-
         // Utility methods
 
         public static ParseState epsilon(ParseState text) => text.Rule(-1);
