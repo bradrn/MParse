@@ -8,12 +8,10 @@ using CSFunc.Types;
 using MParse.Parser;
 using MParse.Lexer;
 
-using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>;
-using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>,
-                                CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Parser.Term>>, MParse.Parser.ParseError>>;
-using ASTMap = System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<MParse.Parser.TermSpecification>>;
+using ParseState = CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, MParse.Parser.Tree<MParse.Parser.Term>>, MParse.Parser.ParseError>;
+using NonTerminal = System.Func<CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, MParse.Parser.Tree<MParse.Parser.Term>>, MParse.Parser.ParseError>,
+                                CSFunc.Types.Error<System.Tuple<System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, System.Collections.Immutable.ImmutableList<MParse.Lexer.Token>, MParse.Parser.Tree<MParse.Parser.Term>>, MParse.Parser.ParseError>>;
 using AST = MParse.Parser.Tree<MParse.Parser.Term>;
-using T = MParse.Parser.TermSpecification;
 using TSpec = System.Collections.Generic.KeyValuePair<string, int>;
 
 using static MParse.Parser.Parser;
@@ -32,19 +30,6 @@ namespace Demo
 
         static void Main(string[] args)
         {
-            ASTMap map = new ASTMap
-            {
-                [0] = new List<T> { T.Loop(1) },
-                [1] = new List<T> { T.Option(2, 3, 4), T.Terminal(SEMICOLON) },
-                [2] = new List<T> { T.Terminal(ID), T.Terminal(INCREMENT) },
-                [3] = new List<T> { T.Terminal(ID), T.Terminal(DECREMENT) },
-                [4] = new List<T> { T.Option(5, 6) },
-                [5] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.Terminal(ID) },
-                [6] = new List<T> { T.Terminal(ID), T.Terminal(EQUALS), T.NonTerminal(7) },
-                [7] = new List<T> { T.Option(8, 9) },
-                [8] = new List<T> { T.Terminal(INTEGER_LITERAL) },
-                [9] = new List<T> { T.Terminal(STRING_LITERAL) }
-            }.Initialise();
             Lexer l = new Lexer(new TSpec(@";", SEMICOLON),
                     new TSpec(@"\+\+", INCREMENT),
                     new TSpec(@"--", DECREMENT),
@@ -64,7 +49,7 @@ namespace Demo
                     Throw: terr => { Console.WriteLine(terr.ToString()); return Unit.Nil; },
                     Result: ts =>
                     {
-                        DoParse(Start, ts, map).Match
+                        DoParse(Start, ts).Match
                         (
                             Result: ast => ast,
                             Throw: terr =>
@@ -92,7 +77,7 @@ namespace Demo
         {
             if (text.State == ErrorState.Result)
             {
-                ParseState parsed = text.AddToLog(Term.EndLoop()); // Add EndLoop at the start of loop so that when the log is reversed, it comes at the end
+                ParseState parsed = text;
                 while (true)
                 {
                     ParseState _parsed = parsed.Parse(Statement);
