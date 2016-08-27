@@ -13,37 +13,9 @@ namespace MParse.Lexer
         public ImmutableList<KeyValuePair<string, int>> TokenSpecifications { get; private set; }
         public Lexer(params KeyValuePair<string, int>[] tokenSpecifications)
         {
-            List<KeyValuePair<string, int>> _tokenSpecifications = new List<KeyValuePair<string, int>>();
-            foreach (KeyValuePair<string, int> tokenSpecification in tokenSpecifications)
-            {
-                _tokenSpecifications.Add(tokenSpecification);
-            }
-            TokenSpecifications = _tokenSpecifications.ToImmutableList();
         }
         public Error<ImmutableList<Token>, LexerError> Lex(string input, Func<int, int, ILocation> locator)
         {
-            List<Token> tokens = new List<Token>();
-            int i = 0;
-            string cur = input;
-            bool hasFoundMatch = false;
-            while (cur != "")
-            {
-                hasFoundMatch = false;
-                foreach (KeyValuePair<string, int> tokenSpecification in TokenSpecifications)
-                {
-                    Match m = Regex.Match(cur, @"\A" + tokenSpecification.Key, RegexOptions.Multiline);
-                    if (m.Success)
-                    {
-                        tokens.Add(new Token(tokenSpecification.Value, m.Value, locator(i, m.Length)));
-                        cur = cur.Substring(m.Length);
-                        i += m.Length;
-                        hasFoundMatch = true;
-                        break;
-                    }
-                }
-                if (!hasFoundMatch) return Error<ImmutableList<Token>, LexerError>.Throw(new MParse.Lexer.LexerError(cur[0], locator(i, 0)));
-            }
-            return Error<ImmutableList<Token>, LexerError>.Result(tokens.ToImmutableList());
         }
     }
 
