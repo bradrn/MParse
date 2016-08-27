@@ -16,6 +16,46 @@ namespace MParse.Lexer
         }
         public Error<ImmutableList<Token>, LexerError> Lex(string input, Func<int, int, ILocation> locator)
         {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class DFA
+    {
+        public Dictionary<int, Dictionary<char, int>> StateTable { get; set; }
+        public int StartingState { get; set; }
+        public List<int> AcceptingStates { get; set; }
+        public DFA(Dictionary<int, Dictionary<char, int>> stateTable, List<int> acceptingStates, int startingState = 0)
+        {
+            StateTable = stateTable;
+            StartingState = startingState;
+            AcceptingStates = acceptingStates;
+        }
+    }
+
+    public class NFA
+    {
+        public Dictionary<int, Dictionary<char, int>> StateTable { get; set; }
+        public int StartingState { get; set; }
+        public List<int> AcceptingStates { get; set; }
+        public NFA(Dictionary<int, Dictionary<char, int>> stateTable, List<int> acceptingStates, int startingState = 0)
+        {
+            StateTable = stateTable;
+            StartingState = startingState;
+            AcceptingStates = acceptingStates;
+        }
+    }
+
+    public class eNFA
+    {
+        public Dictionary<int, Dictionary<char, int>> StateTable { get; set; }
+        public int StartingState { get; set; }
+        public List<int> AcceptingStates { get; set; }
+        public eNFA(Dictionary<int, Dictionary<char, int>> stateTable, List<int> acceptingStates, int startingState = 0)
+        {
+            StateTable = stateTable;
+            StartingState = startingState;
+            AcceptingStates = acceptingStates;
         }
     }
 
