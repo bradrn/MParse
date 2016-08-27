@@ -35,10 +35,10 @@ namespace MParse.Lexer
 
     public class NFA
     {
-        public Dictionary<int, Dictionary<char, int>> StateTable { get; set; }
+        public Dictionary<int, List<KeyValuePair<char, int>>> StateTable { get; set; }
         public int StartingState { get; set; }
         public List<int> AcceptingStates { get; set; }
-        public NFA(Dictionary<int, Dictionary<char, int>> stateTable, List<int> acceptingStates, int startingState = 0)
+        public NFA(Dictionary<int, List<KeyValuePair<char, int>>> stateTable, List<int> acceptingStates, int startingState = 0)
         {
             StateTable = stateTable;
             StartingState = startingState;
@@ -48,10 +48,10 @@ namespace MParse.Lexer
 
     public class eNFA
     {
-        public Dictionary<int, Dictionary<char, int>> StateTable { get; set; }
+        public Dictionary<int, List<KeyValuePair<Maybe<char>, int>>> StateTable { get; set; }
         public int StartingState { get; set; }
         public List<int> AcceptingStates { get; set; }
-        public eNFA(Dictionary<int, Dictionary<char, int>> stateTable, List<int> acceptingStates, int startingState = 0)
+        public eNFA(Dictionary<int, List<KeyValuePair<Maybe<char>, int>>> stateTable, List<int> acceptingStates, int startingState = 0)
         {
             StateTable = stateTable;
             StartingState = startingState;
