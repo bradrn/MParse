@@ -57,6 +57,29 @@ namespace MParse.Lexer
             StartingState = startingState;
             AcceptingStates = acceptingStates;
         }
+        public NFA Close()
+        {
+            NFA nfa = new NFA(new Dictionary<int, List<KeyValuePair<char, int>>>(), new List<int>());
+            foreach (KeyValuePair<int, List<KeyValuePair<Maybe<char>, int>>> state in StateTable)
+            {
+                List<int> closure = CloseState(state.Key);
+                List<KeyValuePair<char, int>> transitions = new List<KeyValuePair<char, int>>();
+                foreach (int _state in closure)
+                {
+                    transitions.AddRange(StateTable[_state].Where(kvp => kvp.Key.State == MaybeState.Just)
+                                                           .Select(kvp => new KeyValuePair<char, int>(kvp.Key.Match(Just: c => c, Nothing: () => { throw new Exception(); }), kvp.Value)));
+                }
+                nfa.StateTable.Add(state.Key, transitions);
+            }
+            return nfa;
+        }
+        private List<int> CloseState(int state)
+        {
+            List<int> epsilonReachableStates = StateTable[state].Where(kvp => kvp.Key.State == MaybeState.Nothing)
+                                                                .Select(kvp => kvp.Value).ToList();
+            epsilonReachableStates.Add(state);
+            return epsilonReachableStates.SelectMany(s => CloseState(s)).ToList();
+        }
     }
 
     public struct Token
