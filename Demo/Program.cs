@@ -38,6 +38,22 @@ namespace Demo
                     new TSpec(@"[0-9]+", INTEGER_LITERAL),
                     new TSpec(@""".*""", STRING_LITERAL),
                     new TSpec(@"\s|(//.*)$", -1));
+            new eNFA(new Dictionary<int, List<KeyValuePair<Maybe<char>, int>>>
+            {
+                [1] = new List<KeyValuePair<Maybe<char>, int>> { new KeyValuePair<Maybe<char>, int>(Maybe<char>.Just('a'), 2), new KeyValuePair<Maybe<char>, int>(Maybe<char>.Nothing(), 3) },
+                [2] = new List<KeyValuePair<Maybe<char>, int>> { new KeyValuePair<Maybe<char>, int>(Maybe<char>.Just('a'), 4), new KeyValuePair<Maybe<char>, int>(Maybe<char>.Nothing(), 3) },
+                [3] = new List<KeyValuePair<Maybe<char>, int>> { new KeyValuePair<Maybe<char>, int>(Maybe<char>.Just('b'), 2), new KeyValuePair<Maybe<char>, int>(Maybe<char>.Nothing(), 1),
+                                                                                                                               new KeyValuePair<Maybe<char>, int>(Maybe<char>.Nothing(), 5) },
+                [4] = new List<KeyValuePair<Maybe<char>, int>>(),
+                [5] = new List<KeyValuePair<Maybe<char>, int>>()
+            }, new List<int> { 4, 5 }, 1)
+            .Close()
+            .StateTable
+            .ToList()
+            .ForEach(kvp =>
+            {
+                Console.WriteLine(kvp.Key + " | " + kvp.Value.Select(_kvp => _kvp.Key + " -> " + _kvp.Value));
+            });
             while (true)
             {
                 string input = "";

@@ -83,8 +83,7 @@ namespace MParse.Lexer
                                                 where kvp.Key.State == MaybeState.Nothing
                                                 where !alreadyVisitedStates.Contains(kvp.Value)
                                                 select kvp.Value).ToList();
-            epsilonReachableStates.Add(state);
-            return epsilonReachableStates.SelectMany(s => CloseState(s, alreadyVisitedStates.AddRange(epsilonReachableStates))).ToList();
+            return epsilonReachableStates.SelectMany(s => CloseState(s, alreadyVisitedStates.AddRange(epsilonReachableStates))).ToImmutableList().Add(state).ToList();
         }
     }
 
