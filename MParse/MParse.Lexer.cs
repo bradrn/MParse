@@ -62,7 +62,7 @@ namespace MParse.Lexer
             NFA nfa = new NFA(new Dictionary<int, List<KeyValuePair<char, int>>>(), new List<int>());
             foreach (KeyValuePair<int, List<KeyValuePair<Maybe<char>, int>>> state in StateTable)
             {
-                List<int> closure = CloseState(state.Key);
+                List<int> closure = CloseState(state.Key, ImmutableList<int>.Empty);
                 List<KeyValuePair<char, int>> transitions = new List<KeyValuePair<char, int>>();
                 foreach (int _state in closure)
                 {
@@ -77,12 +77,13 @@ namespace MParse.Lexer
             }
             return nfa;
         }
-        private List<int> CloseState(int state)
+        private List<int> CloseState(int state, ImmutableList<int> alreadyVisitedStates)
         {
             List<int> epsilonReachableStates = StateTable[state].Where(kvp => kvp.Key.State == MaybeState.Nothing)
+                                                                .Where(kvp => !alreadyVisitedStates.Contains(kvp.Value))
                                                                 .Select(kvp => kvp.Value).ToList();
             epsilonReachableStates.Add(state);
-            return epsilonReachableStates.SelectMany(s => CloseState(s)).ToList();
+            return epsilonReachableStates.SelectMany(s => CloseState(s, alreadyVisitedStates.AddRange(epsilonReachableStates))).ToList();
         }
     }
 
