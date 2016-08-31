@@ -67,7 +67,11 @@ namespace MParse.Lexer
                 foreach (int _state in closure)
                 {
                     transitions.AddRange(StateTable[_state].Where(kvp => kvp.Key.State == MaybeState.Just)
-                                                           .Select(kvp => new KeyValuePair<char, int>(kvp.Key.Match(Just: c => c, Nothing: () => { throw new Exception(); }), kvp.Value)));
+                                                           .Select(kvp =>
+                                                                new KeyValuePair<char, int>(
+                                                                    kvp.Key.Match(Just: c => c,
+                                                                                  Nothing: () => { throw new Exception(); }),
+                                                                    kvp.Value)));
                 }
                 nfa.StateTable.Add(state.Key, transitions);
             }
