@@ -59,7 +59,7 @@ namespace MParse.Lexer
         }
         public NFA Close()
         {
-            NFA nfa = new NFA(new Dictionary<int, List<KeyValuePair<char, int>>>(), new List<int>());
+            NFA nfa = new NFA(new Dictionary<int, List<KeyValuePair<char, int>>>(), this.AcceptingStates, this.StartingState);
             foreach (KeyValuePair<int, List<KeyValuePair<Maybe<char>, int>>> state in StateTable)
             {
                 List<int> closure = CloseState(state.Key, ImmutableList<int>.Empty);
