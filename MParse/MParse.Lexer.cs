@@ -79,12 +79,11 @@ namespace MParse.Lexer
         }
         private List<int> CloseState(int state, ImmutableList<int> alreadyVisitedStates)
         {
-            List<int> epsilonReachableStates = (from kvp in StateTable[state]
-                                                where kvp.Key.State == MaybeState.Nothing
-                                                where !alreadyVisitedStates.Contains(kvp.Value)
-                                                select kvp.Value).ToList();
-            epsilonReachableStates.Add(state);
-            return epsilonReachableStates.SelectMany(s => CloseState(s, alreadyVisitedStates.AddRange(epsilonReachableStates))).ToList();
+            ImmutableList<int> epsilonReachableStates = (from kvp in StateTable[state]
+                                                         where kvp.Key.State == MaybeState.Nothing
+                                                         where !alreadyVisitedStates.Contains(kvp.Value)
+                                                         select kvp.Value).ToImmutableList();
+            return epsilonReachableStates.SelectMany(s => CloseState(s, alreadyVisitedStates.AddRange(epsilonReachableStates))).Add(state).ToList();
         }
     }
 
