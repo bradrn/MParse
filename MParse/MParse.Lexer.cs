@@ -47,13 +47,13 @@ namespace MParse.Lexer
         public DFA ToDFA()
         {
             /* A DFA is created from an NFA in two steps:
-             
-                 (1) Construct a DFA whose each of whose states is composite,
-                     namely a list of NFA states.
-             
-                 (2) Replace composite states (List of int) by simple states
-                     (int).
-               (https://www.itu.dk/people/sestoft/gcsharp/GNfaToDfa.cs)
+             *
+             *   (1) Construct a DFA whose each of whose states is composite,
+             *       namely a list of NFA states.
+             *
+             *   (2) Replace composite states (List of int) by simple states
+             *       (int).
+             * (https://www.itu.dk/people/sestoft/gcsharp/GNfaToDfa.cs)
              */
 
             Func<List<int>, List<int>, bool> equalUnordered = (l1, l2) => Enumerable.SequenceEqual(l1.OrderBy(i => i), l2.OrderBy(i => i));
