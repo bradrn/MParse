@@ -31,6 +31,65 @@ namespace MParse.Lexer
             StartingState = startingState;
             AcceptingStates = acceptingStates;
         }
+        public DFA Minimize()
+        {
+            /* Brzozowski's algorithm for DFA minimization:
+             *   (1) Identify and remove all inaccessible states
+             *   (2) Reverse the DFA to form an NFA (i.e. transition A->B turns into B->A, accepting states become starting states,
+             *       starting states become accepting states)
+             *   (3) Turn this NFA into a DFA
+             *   (4) Repeat steps (2) and (3)
+             *   (5) Remove all inaccesible states
+             */
+            return this.RemoveInaccessibleStates().Reverse().ToDFA().Reverse().ToDFA().RemoveInaccessibleStates();
+        }
+
+        private NFA Reverse()
+        {
+            NFA nfa = new MParse.Lexer.NFA(new Dictionary<int, List<KeyValuePair<char, int>>>(), new List<int> { this.StartingState }, this.AcceptingStates);
+            foreach (KeyValuePair<int, Dictionary<char, int>> state in StateTable)
+            {
+                foreach (KeyValuePair<char, int> transition in state.Value)
+                {
+                    if (nfa.StateTable.ContainsKey(transition.Value))
+                        nfa.StateTable[transition.Value].Add(new KeyValuePair<char, int>(transition.Key, state.Key));
+                    else
+                        nfa.StateTable.Add(transition.Value, new List<KeyValuePair<char, int>>() { new KeyValuePair<char, int>(transition.Key, state.Key) });
+                    // Add state at end of transition if not already added
+                    if (!nfa.StateTable.ContainsKey(state.Key)) nfa.StateTable.Add(state.Key, new List<KeyValuePair<char, int>>());
+                }
+            }
+            return nfa;
+        }
+
+        public DFA RemoveInaccessibleStates()
+        {
+            DFA dfaWithoutInaccessibleStates = new DFA(new Dictionary<int, Dictionary<char, int>>(), AcceptingStates, StartingState);
+            List<int> accessibleStates = new List<int>();
+            Queue<int> curStates = new Queue<int>();
+            accessibleStates.Add(StartingState);
+            StateTable[StartingState].ToList().ForEach(kvp =>
+            {
+                if (!accessibleStates.Contains(kvp.Value))
+                {
+                    curStates.Enqueue(kvp.Value);
+                    accessibleStates.Add(kvp.Value);
+                }
+            });
+            while (curStates.Count != 0)
+            {
+                StateTable[curStates.Dequeue()].ToList().ForEach(kvp =>
+                {
+                    if (!accessibleStates.Contains(kvp.Value))
+                    {
+                        curStates.Enqueue(kvp.Value);
+                        accessibleStates.Add(kvp.Value);
+                    }
+                });
+            }
+            dfaWithoutInaccessibleStates.StateTable = StateTable.Where(kvp => accessibleStates.Contains(kvp.Key)).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            return dfaWithoutInaccessibleStates;
+        }
     }
 
     public class NFA
