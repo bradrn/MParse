@@ -155,7 +155,6 @@ namespace MParse.Lexer
             foreach (KeyValuePair<List<int>, Dictionary<char, List<int>>> compositeTransitions in compositeDFA)
             {
                 dfa.StateTable.Add(getNum(compositeTransitions.Key), compositeTransitions.Value.ToDictionary(kvp => kvp.Key, kvp => getNum(kvp.Value)));
-                if (compositeTransitions.Value.Count == 1 && compositeTransitions.Key.Contains(StartingState)) dfa.StartingState = getNum(compositeTransitions.Key);
                 if (compositeTransitions.Key.Intersect(AcceptingStates).Any()) dfa.AcceptingStates.Add(getNum(compositeTransitions.Key));
             }
             return dfa;
