@@ -36,12 +36,12 @@ namespace MParse.Lexer
     public class NFA
     {
         public Dictionary<int, List<KeyValuePair<char, int>>> StateTable { get; set; }
-        public int StartingState { get; set; }
+        public List<int> StartingStates { get; set; }
         public List<int> AcceptingStates { get; set; }
-        public NFA(Dictionary<int, List<KeyValuePair<char, int>>> stateTable, List<int> acceptingStates, int startingState = 0)
+        public NFA(Dictionary<int, List<KeyValuePair<char, int>>> stateTable, List<int> acceptingStates, List<int> startingStates)
         {
             StateTable = stateTable;
-            StartingState = startingState;
+            StartingStates = startingStates;
             AcceptingStates = acceptingStates;
         }
         public DFA ToDFA()
@@ -62,10 +62,10 @@ namespace MParse.Lexer
             Dictionary<List<int>, Dictionary<char, List<int>>> compositeDFA = new Dictionary<List<int>, Dictionary<char, List<int>>>();
             Queue<List<int>> compositeStatesNotDone = new Queue<List<int>>(); // Keeps track of composite states that have not yet been added to the DFA
 
-            Dictionary<char, List<int>> startingStateClosure = CloseState(StartingState);
-            compositeDFA.Add(new List<int> { StartingState }, startingStateClosure);
+            Dictionary<char, List<int>> startingStateClosure = CloseState(StartingStates);
+            compositeDFA.Add(StartingStates, startingStateClosure);
             foreach (KeyValuePair<char, List<int>> kvp in startingStateClosure)
-                if (!compositeStatesNotDone.Contains(kvp.Value)) compositeStatesNotDone.Enqueue(kvp.Value);
+                if (!compositeStatesNotDone.Any(l => equalUnordered(l, kvp.Value))) compositeStatesNotDone.Enqueue(kvp.Value);
             
             while (compositeStatesNotDone.Count != 0)
             {
@@ -89,8 +89,9 @@ namespace MParse.Lexer
                     curState++;
                 }
             }
+            int startState = mappings.First(kvp => equalUnordered(StartingStates, kvp.Key)).Value;
 
-            DFA dfa = new DFA(new Dictionary<int, Dictionary<char, int>>(), new List<int>(), StartingState);
+            DFA dfa = new DFA(new Dictionary<int, Dictionary<char, int>>(), new List<int>(), startState);
             Func<List<int>, int> getNum = l => mappings.First(kvp => equalUnordered(kvp.Key, l)).Value;
             foreach (KeyValuePair<List<int>, Dictionary<char, List<int>>> compositeTransitions in compositeDFA)
             {
@@ -134,17 +135,17 @@ namespace MParse.Lexer
     public class eNFA
     {
         public Dictionary<int, List<KeyValuePair<Maybe<char>, int>>> StateTable { get; set; }
-        public int StartingState { get; set; }
+        public List<int> StartingStates { get; set; }
         public List<int> AcceptingStates { get; set; }
-        public eNFA(Dictionary<int, List<KeyValuePair<Maybe<char>, int>>> stateTable, List<int> acceptingStates, int startingState = 0)
+        public eNFA(Dictionary<int, List<KeyValuePair<Maybe<char>, int>>> stateTable, List<int> acceptingStates, List<int> startingStates)
         {
             StateTable = stateTable;
-            StartingState = startingState;
+            StartingStates = startingStates;
             AcceptingStates = acceptingStates;
         }
         public NFA Close()
         {
-            NFA nfa = new NFA(new Dictionary<int, List<KeyValuePair<char, int>>>(), this.AcceptingStates, this.StartingState);
+            NFA nfa = new NFA(new Dictionary<int, List<KeyValuePair<char, int>>>(), this.AcceptingStates, this.StartingStates);
             foreach (KeyValuePair<int, List<KeyValuePair<Maybe<char>, int>>> state in StateTable)
             {
                 List<int> closure = CloseState(state.Key, new List<int> { state.Key }.ToImmutableList());
