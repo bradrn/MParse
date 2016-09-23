@@ -31,6 +31,17 @@ namespace MParse.Lexer
             StartingState = startingState;
             AcceptingStates = acceptingStates;
         }
+        public bool Run(string s)
+        {
+            int curState = StartingState;
+            foreach (char c in s)
+            {
+                if (!StateTable[curState].ContainsKey(c)) return false;
+                else curState = StateTable[curState][c];
+            }
+            if (AcceptingStates.Contains(curState)) return true;
+            else return false;
+        }
         public DFA Minimize()
         {
             /* Brzozowski's algorithm for DFA minimization:
