@@ -18,6 +18,22 @@ namespace Tests
     [TestClass]
     public class ParserTest
     {
+        [TestMethod]
+        public void Parse_SingleToken_Success()
+        {
+            NonTerminal nt = text => text.Parse(0).Rule(0);
+            Error<AST, ParseError> result = Parser.DoParse(nt, new List<Token> { new Token(0, "token", new SampleLocation()) }.ToImmutableList());
+            Assert.IsTrue(result.State == ErrorState.Result);
+            Assert.IsTrue(result.Match(Result: ast => ast.Value.Match(Terminal: tok => false,
+                                                                      NonTerminal: _nt => _nt == 0,
+                                                                      Loop: l => false,
+                                                                      EndLoop: () => false), Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Value.Match(Terminal: tok => tok.Value == "token" && tok.Type == 0,
+                                                                                  NonTerminal: _nt => false,
+                                                                                  Loop: l => false,
+                                                                                  EndLoop: () => false), Throw: perr => false));
+        }
+
         class SampleLocation : ILocation { }
     }
 }
