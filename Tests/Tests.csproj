@@ -38,8 +38,9 @@
     <Reference Include="CSFunc">
       <HintPath>..\..\CSFunc\CSFunc\bin\Release\CSFunc.dll</HintPath>
     </Reference>
-    <Reference Include="MParse">
-      <HintPath>..\MParse\bin\Release\MParse.dll</HintPath>
+    <Reference Include="MParse, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\MParse\bin\Debug\MParse.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Collections.Immutable, Version=1.2.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
