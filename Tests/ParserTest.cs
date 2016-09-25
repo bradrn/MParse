@@ -18,5 +18,6 @@ namespace Tests
     [TestClass]
     public class ParserTest
     {
+        class SampleLocation : ILocation { }
     }
 }
