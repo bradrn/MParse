@@ -34,6 +34,24 @@ namespace Tests
                                                                                   EndLoop: () => false), Throw: perr => false));
         }
 
+        [TestMethod]
+        public void Parse_SingleToken_Failure()
+        {
+            NonTerminal nt = text => text.Parse(0).Rule(0);
+            Error<AST, ParseError> result = Parser.DoParse(nt, new List<Token> { new Token(1, "token", new SampleLocation()) }.ToImmutableList());
+            Assert.IsTrue(result.State == ErrorState.Throw);
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Expected.State == ParseError.ExpectedValueState.Token)));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Expected.Match(EOF: () => false,
+                                                                                                 Token: tok => tok == 0,
+                                                                                                 Option: os => false))));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Got.State == ParseError.GotValueState.Token)));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Got.Match(EOF: () => false,
+                                                                                            Token: tok => tok.Type == 1 && tok.Value == "token",
+                                                                                            None: () => false))));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Location is SampleLocation));  // Can't say `perr.Location == new SampleLocation()
+                                                                                                                // because equality is by reference
+        }
+
         class SampleLocation : ILocation { }
     }
 }
