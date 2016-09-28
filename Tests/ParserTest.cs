@@ -22,7 +22,7 @@ namespace Tests
         public void Parse_SingleToken_Success()
         {
             NonTerminal nt = text => text.Parse(0).Rule(0);
-            Error<AST, ParseError> result = Parser.DoParse(nt, new List<Token> { new Token(0, "token", new SampleLocation()) }.ToImmutableList());
+            Error<AST, ParseError> result = Parser.DoParse(nt, ImmutableList.Create(new Token(0, "token", new SampleLocation())));
             Assert.IsTrue(result.State == ErrorState.Result);
             Assert.IsTrue(result.Match(Result: ast => ast.Value.Match(Terminal: tok => false,
                                                                       NonTerminal: _nt => _nt == 0,
@@ -38,7 +38,7 @@ namespace Tests
         public void Parse_SingleToken_Failure()
         {
             NonTerminal nt = text => text.Parse(0).Rule(0);
-            Error<AST, ParseError> result = Parser.DoParse(nt, new List<Token> { new Token(1, "token", new SampleLocation()) }.ToImmutableList());
+            Error<AST, ParseError> result = Parser.DoParse(nt, ImmutableList.Create(new Token(1, "token", new SampleLocation())));
             Assert.IsTrue(result.State == ErrorState.Throw);
             Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Expected.State == ParseError.ExpectedValueState.Token)));
             Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Expected.Match(EOF: () => false,
