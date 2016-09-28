@@ -52,6 +52,27 @@ namespace Tests
                                                                                                                 // because equality is by reference
         }
 
+        [TestMethod]
+        public void Parse_MultipleTokens_Success()
+        {
+            NonTerminal nt = text => text.Parse(0).Parse(1).Rule(0);
+            Error<AST, ParseError> result = Parser.DoParse(nt, ImmutableList.Create(new Token(0, "token0", new SampleLocation()),
+                                                                                    new Token(1, "token1", new SampleLocation())));
+            Assert.IsTrue(result.State == ErrorState.Result);
+            Assert.IsTrue(result.Match(Result: ast => ast.Value.Match(Terminal: tok => false,
+                                                                      NonTerminal: _nt => _nt == 0,
+                                                                      Loop: l => false,
+                                                                      EndLoop: () => false), Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Value.Match(Terminal: tok => tok.Value == "token0" && tok.Type == 0,
+                                                                                  NonTerminal: _nt => false,
+                                                                                  Loop: l => false,
+                                                                                  EndLoop: () => false), Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[1].Value.Match(Terminal: tok => tok.Value == "token1" && tok.Type == 1,
+                                                                                  NonTerminal: _nt => false,
+                                                                                  Loop: l => false,
+                                                                                  EndLoop: () => false), Throw: perr => false));
+        }
+
         class SampleLocation : ILocation { }
     }
 }
