@@ -73,6 +73,23 @@ namespace Tests
                                                                                   EndLoop: () => false), Throw: perr => false));
         }
 
+        [TestMethod]
+        public void Parse_MultipleTokens_Failure()
+        {
+            NonTerminal nt = text => text.Parse(0).Parse(1).Rule(0);
+            Error<AST, ParseError> result = Parser.DoParse(nt, ImmutableList.Create(new Token(0, "token0-0", new SampleLocation()),
+                                                                                    new Token(0, "token0-1", new SampleLocation())));
+            Assert.IsTrue(result.State == ErrorState.Throw);
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Expected.State == ParseError.ExpectedValueState.Token));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Expected.Match(EOF: () => false,
+                                                                                                Token: tok => tok == 1,
+                                                                                                Option: os => false)));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Got.State == ParseError.GotValueState.Token));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Got.Match(EOF: () => false,
+                                                                                           Token: tok => tok.Type == 0 && tok.Value == "token0-1",
+                                                                                           None: () => false)));
+        }
+
         class SampleLocation : ILocation { }
     }
 }
