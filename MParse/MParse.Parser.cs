@@ -22,7 +22,7 @@ namespace MParse.Parser
             ParseState parsed = Start(ParseState.Return(Tuple.Create(TokenList.Empty, input, new AST())));
             parsed = parsed.Bind(state => state.Item2.Count == 0
                                           ? parsed
-                                          : ParseState.Throw(new ParseError(ParseError.ExpectedValue.EOF(), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state)));
+                                          : ParseState.Throw(new ParseError(new ParseError.ExpectedValue.EOF(), new ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state)));
             return parsed.Map(value => value.Item3);
         }
 
@@ -39,13 +39,13 @@ namespace MParse.Parser
                                            ? ParseState.Result(Tuple.Create(
                                                                state.Item1.Add(state.Item2[0]),
                                                                state.Item2.Skip(1).ToImmutableList(),
-                                                               new Tree<Term>(state.Item3.Value, state.Item3.Children.Add(new Tree<Term>(Term.Terminal(state.Item2[0]))))))
-                                           : ParseState.Throw(new ParseError(ParseError.ExpectedValue.Token(token), ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state))
+                                                               new Tree<Term>(state.Item3.Value, state.Item3.Children.Add(new Tree<Term>(new Term.Terminal(state.Item2[0]))))))
+                                           : ParseState.Throw(new ParseError(new ParseError.ExpectedValue.Token(token), new ParseError.GotValue.Token(state.Item2[0]), state.Item2[0].Location, state))
                             select result);
                 }
                 catch (ArgumentOutOfRangeException)
                 {
-                    return prev.Bind(state => ParseState.Throw(new ParseError(ParseError.ExpectedValue.Token(token), ParseError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state)));
+                    return prev.Bind(state => ParseState.Throw(new ParseError(new ParseError.ExpectedValue.Token(token), new ParseError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state)));
                 }
             }
             else return prev;
@@ -82,8 +82,8 @@ namespace MParse.Parser
                 }
                 return prev.Bind(state =>
                     state.Item2.Count == 0
-                    ? ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state))
-                    : ParseState.Throw(new ParseError(ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), ParseError.GotValue.None(), state.Item2[0].Location, state)));
+                    ? ParseState.Throw(new ParseError(new ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), new ParseError.GotValue.EOF(), state.Item1[state.Item1.Count - 1].Location, state))
+                    : ParseState.Throw(new ParseError(new ParseError.ExpectedValue.Option(options.Select(o => o.Item2).ToArray()), new ParseError.GotValue.None(), state.Item2[0].Location, state)));
             }
             else return prev;
         }
@@ -105,7 +105,7 @@ namespace MParse.Parser
             else return prev;
         }
 
-        public static ParseState Rule(this ParseState prev, int rulenum) => prev.Map(state => Tuple.Create(state.Item1, state.Item2, new AST(Term.NonTerminal(rulenum), state.Item3.Children)));
+        public static ParseState Rule(this ParseState prev, int rulenum) => prev.Map(state => Tuple.Create(state.Item1, state.Item2, new AST(new Term.NonTerminal(rulenum), state.Item3.Children)));
 
         // Utility methods
 
@@ -134,87 +134,50 @@ namespace MParse.Parser
 
     #region Term
     // Term = Terminal Token | NonTerminal int | Loop int | EndLoop
-    public class Term
+    public abstract class Term
     {
-        private class TerminalImpl
-        {
-            public Token Value1 { get; set; } = default(Token);
-            public TerminalImpl(Token value1)
-            {
-                Value1 = value1;
-            }
-        }
-        private class NonTerminalImpl
-        {
-            public int Value1 { get; set; } = default(int);
-            public NonTerminalImpl(int value1)
-            {
-                Value1 = value1;
-            }
-        }
-        private class LoopImpl
-        {
-            public int Value1 { get; set; } = default(int);
-            public LoopImpl(int value1)
-            {
-                Value1 = value1;
-            }
-        }
-        private class EndLoopImpl
-        {
-            public EndLoopImpl()
-            {
-            }
-        }
-        public TermState State { get; set; }
-        private TerminalImpl TerminalField;
-        private TerminalImpl TerminalValue { get { return TerminalField; } set { TerminalField = value; NonTerminalField = null; LoopField = null; EndLoopField = null; State = TermState.Terminal; } }
-        private NonTerminalImpl NonTerminalField;
-        private NonTerminalImpl NonTerminalValue { get { return NonTerminalField; } set { NonTerminalField = value; TerminalField = null; LoopField = null; EndLoopField = null; State = TermState.NonTerminal; } }
-        private LoopImpl LoopField;
-        private LoopImpl LoopValue { get { return LoopField; } set { LoopField = value; TerminalField = null; NonTerminalField = null; EndLoopField = null; State = TermState.Loop; } }
-        private EndLoopImpl EndLoopField;
-        private EndLoopImpl EndLoopValue { get { return EndLoopField; } set { EndLoopField = value; TerminalField = null; NonTerminalField = null; LoopField = null; State = TermState.EndLoop; } }
         private Term() { }
-        public static Term Terminal(Token value1)
+        public sealed class Terminal : Term
         {
-            Term result = new Term();
-            result.TerminalValue = new TerminalImpl(value1);
-            return result;
-        }
-        public static Term NonTerminal(int value1)
-        {
-            Term result = new Term();
-            result.NonTerminalValue = new NonTerminalImpl(value1);
-            return result;
-        }
-        public static Term Loop(int value1)
-        {
-            Term result = new Term();
-            result.LoopValue = new LoopImpl(value1);
-            return result;
-        }
-        public static Term EndLoop()
-        {
-            Term result = new Term();
-            result.EndLoopValue = new EndLoopImpl();
-            return result;
-        }
-        public T1 Match<T1>(Func<Token, T1> Terminal, Func<int, T1> NonTerminal, Func<int, T1> Loop, Func<T1> EndLoop)
-        {
-            switch (State)
+            public Token Token { get; }
+            public Terminal(Token token)
             {
-                case TermState.Terminal: return Terminal(TerminalValue.Value1);
-                case TermState.NonTerminal: return NonTerminal(NonTerminalValue.Value1);
-                case TermState.Loop: return Loop(LoopValue.Value1);
-                case TermState.EndLoop: return EndLoop();
+                Token = token;
             }
-            return default(T1);
         }
-        public override string ToString()
+        public sealed class NonTerminal : Term
         {
-            return this.Match(Terminal: tok => "Terminal " + tok.ToString(), NonTerminal: nt => "Nonterminal " + nt, Loop: l => "Loop " + l, EndLoop: () => "EndLoop");
+            public int RuleNumber { get; }
+            public NonTerminal(int ruleNumber)
+            {
+                RuleNumber = ruleNumber;
+            }
         }
+        public sealed class Loop : Term
+        {
+            public int RuleNumber { get; }
+            public Loop(int ruleNumber)
+            {
+                RuleNumber = ruleNumber;
+            }
+        }
+        public sealed class EndLoop : Term
+        {
+            public EndLoop() { }
+        }
+        public T Match<T>(Func<Token, T> Terminal, Func<int, T> NonTerminal, Func<int, T> Loop, Func<T> EndLoop)
+        {
+            if      (this is Terminal)    return Terminal   ((this as Terminal)   .Token);
+            else if (this is NonTerminal) return NonTerminal((this as NonTerminal).RuleNumber);
+            else if (this is Loop)        return Loop       ((this as Loop)       .RuleNumber);
+            else if (this is EndLoop)     return EndLoop();
+            else throw new Exception("Term object was not one of Terminal, NonTerminal, Loop, EndLoop.");
+        }
+        public TermState State => this.Match(Terminal: _ => TermState.Terminal,
+                                             NonTerminal: _ => TermState.NonTerminal,
+                                             Loop: _ => TermState.Loop,
+                                             EndLoop: () => TermState.EndLoop);
+        public override string ToString() => this.Match(Terminal: tok => "Terminal " + tok.ToString(), NonTerminal: nt => "Nonterminal " + nt, Loop: l => "Loop " + l, EndLoop: () => "EndLoop");
     }
     public enum TermState
     {
@@ -288,45 +251,41 @@ namespace MParse.Parser
 
     public class ParseError : TokenError
     {
-        public class ExpectedValue
+        public abstract class ExpectedValue
         {
             // ExpectedValue = EOF | Token int | Option string[]
-            public ExpectedValueState State { get; set; }
-            private Unit EOFField;
-            private Unit EOFValue { get { return EOFField; } set { EOFField = value; TokenField = 0; OptionField = null; State = ExpectedValueState.EOF; } }
-            private int TokenField;
-            private int TokenValue { get { return TokenField; } set { TokenField = value; EOFField = null; OptionField = null; State = ExpectedValueState.Token; } }
-            private string[] OptionField;
-            private string[] OptionValue { get { return OptionField; } set { OptionField = value; EOFField = null; TokenField = 0; State = ExpectedValueState.Option; } }
             private ExpectedValue() { }
-            public static ExpectedValue EOF()
+            public sealed class EOF : ExpectedValue
             {
-                ExpectedValue result = new ExpectedValue();
-                result.EOFValue = Unit.Nil;
-                return result;
+                public EOF() { }
             }
-            public static ExpectedValue Token(int value1)
+            public sealed class Token : ExpectedValue
             {
-                ExpectedValue result = new ExpectedValue();
-                result.TokenValue = value1;
-                return result;
-            }
-            public static ExpectedValue Option(string[] value1)
-            {
-                ExpectedValue result = new ExpectedValue();
-                result.OptionValue = value1;
-                return result;
-            }
-            public T1 Match<T1>(Func<T1> EOF, Func<int, T1> Token, Func<string[], T1> Option)
-            {
-                switch (State)
+                public int Type { get; }
+                public Token(int type)
                 {
-                    case ExpectedValueState.EOF: return EOF();
-                    case ExpectedValueState.Token: return Token(TokenValue);
-                    case ExpectedValueState.Option: return Option(OptionValue);
+                    Type = type;
                 }
-                return default(T1);
             }
+            public sealed class Option : ExpectedValue
+            {
+                public string[] Options { get; }
+                public Option(params string[] options)
+                {
+                    Options = options;
+                }
+            }
+            public T Match<T>(Func<T> EOF, Func<int, T> Token, Func<string[], T> Option)
+            {
+                if      (this is EOF)    return EOF();
+                else if (this is Token)  return Token ((this as Token) .Type);
+                else if (this is Option) return Option((this as Option).Options);
+                else throw new Exception("ExpectedValue object was not one of EOF, Token, Option");
+            }
+            public ExpectedValueState State => this.Match(EOF: () => ExpectedValueState.EOF,
+                                                          Token: _ => ExpectedValueState.Token,
+                                                          Option: _ => ExpectedValueState.Option);
+            public override string ToString() => this.Match(EOF: () => "EOF", Token: tok => "Token " + tok, Option: os => "Option [" + string.Join(", ", os) + "]");
         }
         public enum ExpectedValueState
         {
@@ -335,42 +294,34 @@ namespace MParse.Parser
         public class GotValue
         {
             // GotValue = EOF | Token Token | None
-            public GotValueState State { get; set; }
-            private Unit EOFField;
-            private Unit EOFValue { get { return EOFField; } set { EOFField = value; TokenField = new Token(); NoneField = null; State = GotValueState.EOF; } }
-            private Token TokenField;
-            private Token TokenValue { get { return TokenField; } set { TokenField = value; EOFField = Unit.Nil; NoneField = null; State = GotValueState.Token; } }
-            private Unit NoneField;
-            private Unit NoneValue { get { return NoneField; } set { NoneField = value; TokenField = new Token(); EOFField = null; State = GotValueState.EOF; } }
             private GotValue() { }
-            public static GotValue EOF()
+            public sealed class EOF : GotValue
             {
-                GotValue result = new GotValue();
-                result.EOFValue = Unit.Nil;
-                return result;
+                public EOF() { }
             }
-            public static GotValue Token(Token value1)
+            public sealed class Token : GotValue
             {
-                GotValue result = new GotValue();
-                result.TokenValue = value1;
-                return result;
-            }
-            public static GotValue None()
-            {
-                GotValue result = new GotValue();
-                result.NoneValue = Unit.Nil;
-                return result;
-            }
-            public T1 Match<T1>(Func<T1> EOF, Func<Token, T1> Token, Func<T1> None)
-            {
-                switch (State)
+                public MParse.Lexer.Token Type { get; }
+                public Token(MParse.Lexer.Token type)
                 {
-                    case GotValueState.EOF: return EOF();
-                    case GotValueState.Token: return Token(TokenValue);
-                    case GotValueState.None: return None();
+                    Type = type;
                 }
-                return default(T1);
             }
+            public sealed class None : GotValue
+            {
+                public None() { }
+            }
+            public T Match<T>(Func<T> EOF, Func<MParse.Lexer.Token, T> Token, Func<T> None)
+            {
+                if      (this is EOF)   return EOF();
+                else if (this is Token) return Token((this as Token).Type);
+                else if (this is None)  return None();
+                else throw new Exception("ExpectedValue object was not one of EOF, Token, Option");
+            }
+            public GotValueState State => this.Match(EOF: () => GotValueState.EOF,
+                                                          Token: _ => GotValueState.Token,
+                                                          None: () => GotValueState.None);
+            public override string ToString() => this.Match(EOF: () => "EOF", Token: tok => "Token " + tok, None: () => "None");
         }
         public enum GotValueState
         {

@@ -64,7 +64,7 @@ namespace Demo
                                     [INTEGER_LITERAL] = "integer",
                                     [STRING_LITERAL] = "string"
                                 }));
-                                return new AST(Term.Terminal(Token(-1, "Error", new Line(-1))));
+                                return new AST(new Term.Terminal(Token(-1, "Error", new Line(-1))));
                             }
                         ).PrintPretty();
                         return Unit.Nil;
