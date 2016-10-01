@@ -173,6 +173,36 @@ namespace MParse.Parser
             else if (this is EndLoop)     return EndLoop();
             else throw new Exception("Term object was not one of Terminal, NonTerminal, Loop, EndLoop.");
         }
+        public void Match(Action<Token> Terminal, Action<int> NonTerminal, Action<int> Loop, Action EndLoop) =>
+            this.Match(Terminal:    tok => { Terminal(tok);   return Unit.Nil; },
+                       NonTerminal: nt  => { NonTerminal(nt); return Unit.Nil; },
+                       Loop:        l   => { Loop(l);         return Unit.Nil; },
+                       EndLoop:     ()  => { EndLoop();       return Unit.Nil; });
+
+        public T TerminalOrDefault<T>(T Default, Func<Token, T> Terminal) => this.Match(Terminal: Terminal,
+                                                                                        NonTerminal: _ => Default,
+                                                                                        Loop: _ => Default,
+                                                                                        EndLoop: () => Default);
+        public void WhenTerminal(Action<Token> Terminal) => this.Match(Terminal: Terminal, NonTerminal: _ => {}, Loop: _ => {}, EndLoop: () => {});
+
+        public T NonTerminalOrDefault<T>(T Default, Func<int, T> NonTerminal) => this.Match(Terminal: _ => Default,
+                                                                                            NonTerminal: NonTerminal,
+                                                                                            Loop: _ => Default,
+                                                                                            EndLoop: () => Default);
+        public void WhenNonTerminal(Action<int> NonTerminal) => this.Match(Terminal: _ => {}, NonTerminal: NonTerminal, Loop: _ => {}, EndLoop: () => {});
+
+        public T LoopOrDefault<T>(T Default, Func<int, T> Loop) => this.Match(Terminal: _ => Default,
+                                                                              NonTerminal: _ => Default,
+                                                                              Loop: Loop,
+                                                                              EndLoop: () => Default);
+        public void WhenLoop(Action<int> Loop) => this.Match(Terminal: _ => { }, NonTerminal: _ => { }, Loop: Loop, EndLoop: () => { });
+
+        public T EndLoopOrDefault<T>(T Default, Func<T> EndLoop) => this.Match(Terminal: _ => Default,
+                                                                              NonTerminal: _ => Default,
+                                                                              Loop: _ => Default,
+                                                                              EndLoop: EndLoop);
+        public void WhenEndLoop(Action EndLoop) => this.Match(Terminal: _ => { }, NonTerminal: _ => { }, Loop: _ => { }, EndLoop: EndLoop);
+
         public TermState State => this.Match(Terminal: _ => TermState.Terminal,
                                              NonTerminal: _ => TermState.NonTerminal,
                                              Loop: _ => TermState.Loop,
@@ -282,6 +312,20 @@ namespace MParse.Parser
                 else if (this is Option) return Option((this as Option).Options);
                 else throw new Exception("ExpectedValue object was not one of EOF, Token, Option");
             }
+            public void Match(Action EOF, Action<int> Token, Action<string[]> Option) =>
+                this.Match(EOF:  ()   => { EOF();      return Unit.Nil; },
+                           Token: tok => { Token(tok); return Unit.Nil; },
+                           Option: os => { Option(os); return Unit.Nil; });
+
+            public T EOFOrDefault<T>(T Default, Func<T> EOF) => this.Match(EOF: EOF, Token: _ => Default, Option: _ => Default);
+            public void WhenEOF(Action EOF) => this.Match(EOF: EOF, Token: _ => { }, Option: _ => { });
+
+            public T TokenOrDefault<T>(T Default, Func<int, T> Token) => this.Match(EOF: () => Default, Token: Token, Option: _ => Default);
+            public void WhenToken(Action<int> Token) => this.Match(EOF: () => { }, Token: Token, Option: _ => { });
+
+            public T OptionOrDefault<T>(T Default, Func<string[], T> Option) => this.Match(EOF: () => Default, Token: _ => Default, Option: Option);
+            public void WhenOption(Action<string[]> Option) => this.Match(EOF: () => { }, Token: _ => { }, Option: Option);
+
             public ExpectedValueState State => this.Match(EOF: () => ExpectedValueState.EOF,
                                                           Token: _ => ExpectedValueState.Token,
                                                           Option: _ => ExpectedValueState.Option);
@@ -318,6 +362,20 @@ namespace MParse.Parser
                 else if (this is None)  return None();
                 else throw new Exception("ExpectedValue object was not one of EOF, Token, Option");
             }
+            public void Match(Action EOF, Action<MParse.Lexer.Token> Token, Action None) =>
+                this.Match(EOF:   ()  => { EOF();      return Unit.Nil; },
+                           Token: tok => { Token(tok); return Unit.Nil; },
+                           None:  ()  => { None();     return Unit.Nil; });
+
+            public T EOFOrDefault<T>(T Default, Func<T> EOF) => this.Match(EOF: EOF, Token: _ => Default, None: () => Default);
+            public void WhenEOF(Action EOF) => this.Match(EOF: EOF, Token: _ => { }, None: () => { });
+
+            public T TokenOrDefault<T>(T Default, Func<MParse.Lexer.Token, T> Token) => this.Match(EOF: () => Default, Token: Token, None: () => Default);
+            public void WhenToken(Action<MParse.Lexer.Token> Token) => this.Match(EOF: () => { }, Token: Token, None: () => { });
+
+            public T OptionOrDefault<T>(T Default, Func<T> None) => this.Match(EOF: () => Default, Token: _ => Default, None: None);
+            public void WhenOption(Action None) => this.Match(EOF: () => { }, Token: _ => { }, None: None);
+
             public GotValueState State => this.Match(EOF: () => GotValueState.EOF,
                                                           Token: _ => GotValueState.Token,
                                                           None: () => GotValueState.None);
