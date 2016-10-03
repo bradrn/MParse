@@ -24,14 +24,12 @@ namespace Tests
             NonTerminal nt = text => text.Parse(0).Rule(0);
             Error<AST, ParseError> result = Parser.DoParse(nt, ImmutableList.Create(new Token(0, "token", new SampleLocation())));
             Assert.IsTrue(result.State == ErrorState.Result);
-            Assert.IsTrue(result.Match(Result: ast => ast.Value.Match(Terminal: tok => false,
-                                                                      NonTerminal: _nt => _nt == 0,
-                                                                      Loop: l => false,
-                                                                      EndLoop: () => false), Throw: perr => false));
-            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Value.Match(Terminal: tok => tok.Value == "token" && tok.Type == 0,
-                                                                                  NonTerminal: _nt => false,
-                                                                                  Loop: l => false,
-                                                                                  EndLoop: () => false), Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Value.NonTerminalOrDefault(NonTerminal: _nt => _nt == 0,
+                                                                                     Default: false),
+                                       Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Value.TerminalOrDefault(Terminal: tok => tok.Value == "token" && tok.Type == 0,
+                                                                                              Default: false),
+                                       Throw: perr => false));
         }
 
         [TestMethod]
@@ -41,13 +39,11 @@ namespace Tests
             Error<AST, ParseError> result = Parser.DoParse(nt, ImmutableList.Create(new Token(1, "token", new SampleLocation())));
             Assert.IsTrue(result.State == ErrorState.Throw);
             Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Expected.State == ParseError.ExpectedValueState.Token)));
-            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Expected.Match(EOF: () => false,
-                                                                                                 Token: tok => tok == 0,
-                                                                                                 Option: os => false))));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Expected.TokenOrDefault(Token: tok => tok == 0,
+                                                                                                          Default: false))));
             Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Got.State == ParseError.GotValueState.Token)));
-            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Got.Match(EOF: () => false,
-                                                                                            Token: tok => tok.Type == 1 && tok.Value == "token",
-                                                                                            None: () => false))));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => (perr.Got.TokenOrDefault(Token: tok => tok.Type == 1 && tok.Value == "token",
+                                                                                                     Default: false))));
             Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Location is SampleLocation));  // Can't say `perr.Location == new SampleLocation()
                                                                                                                 // because equality is by reference
         }
@@ -59,18 +55,15 @@ namespace Tests
             Error<AST, ParseError> result = Parser.DoParse(nt, ImmutableList.Create(new Token(0, "token0", new SampleLocation()),
                                                                                     new Token(1, "token1", new SampleLocation())));
             Assert.IsTrue(result.State == ErrorState.Result);
-            Assert.IsTrue(result.Match(Result: ast => ast.Value.Match(Terminal: tok => false,
-                                                                      NonTerminal: _nt => _nt == 0,
-                                                                      Loop: l => false,
-                                                                      EndLoop: () => false), Throw: perr => false));
-            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Value.Match(Terminal: tok => tok.Value == "token0" && tok.Type == 0,
-                                                                                  NonTerminal: _nt => false,
-                                                                                  Loop: l => false,
-                                                                                  EndLoop: () => false), Throw: perr => false));
-            Assert.IsTrue(result.Match(Result: ast => ast.Children[1].Value.Match(Terminal: tok => tok.Value == "token1" && tok.Type == 1,
-                                                                                  NonTerminal: _nt => false,
-                                                                                  Loop: l => false,
-                                                                                  EndLoop: () => false), Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Value.NonTerminalOrDefault(NonTerminal: _nt => _nt == 0,
+                                                                                     Default: false),
+                                       Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Value.TerminalOrDefault(Terminal: tok => tok.Value == "token0" && tok.Type == 0,
+                                                                                              Default: false),
+                                       Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[1].Value.TerminalOrDefault(Terminal: tok => tok.Value == "token1" && tok.Type == 1,
+                                                                                              Default: false),
+                                       Throw: perr => false));
         }
 
         [TestMethod]
@@ -81,13 +74,11 @@ namespace Tests
                                                                                     new Token(0, "token0-1", new SampleLocation())));
             Assert.IsTrue(result.State == ErrorState.Throw);
             Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Expected.State == ParseError.ExpectedValueState.Token));
-            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Expected.Match(EOF: () => false,
-                                                                                                Token: tok => tok == 1,
-                                                                                                Option: os => false)));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Expected.TokenOrDefault(Token: tok => tok == 1,
+                                                                                                         Default: false)));
             Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Got.State == ParseError.GotValueState.Token));
-            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Got.Match(EOF: () => false,
-                                                                                           Token: tok => tok.Type == 0 && tok.Value == "token0-1",
-                                                                                           None: () => false)));
+            Assert.IsTrue(result.Match(Result: ast => false, Throw: perr => perr.Got.TokenOrDefault(Token: tok => tok.Type == 0 && tok.Value == "token0-1",
+                                                                                                    Default: false)));
         }
 
         class SampleLocation : ILocation { }
