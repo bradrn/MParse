@@ -81,6 +81,34 @@ namespace Tests
                                                                                                     Default: false)));
         }
 
+
+        [TestMethod]
+        public void Parse_NonTerminal_Success()
+        {
+            NonTerminal nt2 = text => text.Parse(0).Rule(1);
+            NonTerminal nt1 = text => text.Parse(nt2).Parse(nt2).Rule(0);
+            Error<AST, ParseError> result = Parser.DoParse(nt1, ImmutableList.Create(new Token(0, "token0", new SampleLocation()),
+                                                                                     new Token(0, "token1", new SampleLocation())));
+            Assert.IsTrue(result.State == ErrorState.Result);
+            Assert.IsTrue(result.Match(Result: ast => ast.Value.NonTerminalOrDefault(NonTerminal: nt => nt == 0,
+                                                                                     Default: false),
+                                       Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Value.State == TermState.NonTerminal, Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Value.NonTerminalOrDefault(NonTerminal: nt => nt == 1,
+                                                                                                 Default: false),
+                                       Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[1].Value.NonTerminalOrDefault(NonTerminal: nt => nt == 1,
+                                                                                                 Default: false),
+                                       Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[0].Children[0].Value.TerminalOrDefault(Terminal: tok => tok.Type == 0 & tok.Value == "token0",
+                                                                                                          Default: false),
+                                       Throw: perr => false));
+            Assert.IsTrue(result.Match(Result: ast => ast.Children[1].Children[0].Value.TerminalOrDefault(Terminal: tok => tok.Type == 0 & tok.Value == "token1",
+                                                                                                          Default: false),
+                                       Throw: perr => false));
+
+        }
+
         class SampleLocation : ILocation { }
     }
 }
